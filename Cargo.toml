@@ -1,0 +1,9 @@
+[workspace]
+resolver = "2"
+members = [
+	"crates/shroom-net",
+	"crates/shroom-pkt",
+	"crates/shroom-pkt-derive",
+	"crates/shroom-srv",
+	"crates/shroom-crypto", "crates/shroom-wz",
+]

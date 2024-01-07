@@ -1,0 +1,14 @@
+[package]
+name = "shroom-pkt-derive"
+version = "0.2.2"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+syn = { version = "2", features=["extra-traits", "parsing"]}
+quote = "1"
+darling = "0.20"
+proc-macro2 = "1"
+

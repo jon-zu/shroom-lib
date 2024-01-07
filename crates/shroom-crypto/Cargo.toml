@@ -1,0 +1,14 @@
+[package]
+name = "shroom-crypto"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+array-init = "2"
+aes = "0.8"
+cipher = { version = "0.4", features = ["block-padding"] }
+rand = "0.8"
+ofb = "0.6.1"
+itoa = "1.0.10"
