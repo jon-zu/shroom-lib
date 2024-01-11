@@ -44,10 +44,7 @@ impl<'a, W: Write> ChunkWriter<'a, W> {
         &mut self,
         mut chunks: impl Iterator<Item = T>,
     ) -> io::Result<()> {
-        while let Some(mut chunk) = chunks.next() {
-            self.write_chunk(chunk.as_mut())?;
-        }
-
+        chunks.try_for_each(|mut chunk| self.write_chunk(chunk.as_mut()))?;
         Ok(())
     }
 }

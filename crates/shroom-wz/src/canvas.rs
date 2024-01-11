@@ -1,7 +1,4 @@
-use std::{
-    ops::{Deref, DerefMut},
-    vec,
-};
+use std::vec;
 
 use anyhow::Error;
 use bit_struct::{u4, u5, u6};
