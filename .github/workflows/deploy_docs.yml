@@ -44,7 +44,7 @@ jobs:
             command: doc
             args: --all --no-deps
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v1
         with:
           # Upload entire repository
           path: 'target/doc'
