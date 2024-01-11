@@ -1,7 +1,7 @@
 use futures::Future;
 use shroom_crypto::{net::net_cipher::NetCipher, SharedCryptoContext};
 use shroom_pkt::shroom_enum_code;
-use tokio::io::AsyncWriteExt;
+use tokio::{io::AsyncWriteExt, net::{ToSocketAddrs, TcpStream}};
 
 use crate::{NetResult, ShroomStream};
 
@@ -132,6 +132,25 @@ impl<T> LegacyCodec<T> {
         trans.write_all(&hshake.to_buf()).await?;
         Ok(ShroomStream::new(trans, self.create_server_codec(&hshake)))
     }
+}
+
+impl LegacyCodec<TcpStream> {
+        /// Connects to a server with the given address
+        pub async fn connect(
+            &self,
+            addr: impl ToSocketAddrs
+        ) -> NetResult<ShroomStream<Self>> {
+            let stream = TcpStream::connect(addr).await?;
+            self.create_client_inner(stream).await
+        }
+
+        /// Accepts a connection from a client
+        pub async fn accept(
+            &self,
+            stream: TcpStream
+        ) -> NetResult<ShroomStream<Self>> {
+            self.create_server_inner(stream).await
+        }
 }
 
 impl<T: ShroomTransport + Sync> ShroomCodec for LegacyCodec<T> {

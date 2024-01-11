@@ -673,7 +673,7 @@ impl<'de> serde::de::Visitor<'de> for WzValueVisitor {
         while let Some((k, v)) = map.next_entry::<String, WzValue>()? {
             m.insert(k, v);
         }
-        return Ok(WzValue::Object(ObjectVal(m)));
+        Ok(WzValue::Object(ObjectVal(m)))
     }
 }
 

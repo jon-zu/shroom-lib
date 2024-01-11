@@ -2,11 +2,11 @@ use std::num::Wrapping;
 
 use aes::cipher::{inout::InOutBuf, KeyIvInit};
 use shroom_crypto::{
-    wz::{wz_data_cipher::WzDataCipher, wz_offset_cipher::WzOffsetCipher},
+    wz::{wz_data_cipher::{WzDataCipher, WzDataCryptStream}, wz_offset_cipher::WzOffsetCipher},
     ShroomVersion,
 };
 
-use crate::{WzConfig, WzRegion};
+use crate::WzConfig;
 
 #[derive(Debug)]
 pub struct WzCryptoContext {
@@ -14,40 +14,6 @@ pub struct WzCryptoContext {
     pub key: [u8; 32],
     pub offset_magic: u32,
     pub no_crypto: bool,
-}
-
-impl From<WzRegion> for WzCryptoContext {
-    fn from(region: WzRegion) -> Self {
-        use shroom_crypto::default_keys::wz;
-        match region {
-            WzRegion::Global => Self {
-                initial_iv: *wz::GLOBAL_WZ_IV,
-                key: *wz::DEFAULT_WZ_AES_KEY,
-                offset_magic: wz::DEFAULT_WZ_OFFSET_MAGIC,
-                no_crypto: false
-            },
-            WzRegion::Sea => Self {
-                initial_iv: *wz::SEA_WZ_IV,
-                key: *wz::DEFAULT_WZ_AES_KEY,
-                offset_magic: wz::DEFAULT_WZ_OFFSET_MAGIC,
-                no_crypto: false
-            },
-            WzRegion::Other => Self {
-                initial_iv: *wz::DEFAULT_WZ_IV,
-                key: *wz::DEFAULT_WZ_AES_KEY,
-                offset_magic: wz::DEFAULT_WZ_OFFSET_MAGIC,
-                no_crypto: false
-            },
-            WzRegion::Server => {
-                Self {
-                    initial_iv: *wz::DEFAULT_WZ_IV,
-                    key: *wz::DEFAULT_WZ_AES_KEY,
-                    offset_magic: wz::DEFAULT_WZ_OFFSET_MAGIC,
-                    no_crypto: true
-                }
-            }
-        }
-    }
 }
 
 fn xor_mask_ascii(data: &mut [u8]) {
@@ -67,14 +33,14 @@ fn xor_mask_unicode(data: &mut [u16]) {
 }
 
 #[derive(Clone)]
-pub struct WzCipher {
+pub struct WzCrypto {
     cipher: WzDataCipher,
     offset_cipher: WzOffsetCipher,
     data_offset: u32,
     no_crypt: bool,
 }
 
-impl std::fmt::Debug for WzCipher {
+impl std::fmt::Debug for WzCrypto {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("WzCrypto")
             .field("data_offset", &self.data_offset)
@@ -83,26 +49,22 @@ impl std::fmt::Debug for WzCipher {
     }
 }
 
-impl WzCipher {
-    pub fn new(
-        ctx: &WzCryptoContext,
-        version: ShroomVersion,
-        data_offset: u32,
-    ) -> Self {
+impl WzCrypto {
+    pub fn new(ctx: &WzCryptoContext, version: ShroomVersion, data_offset: u32) -> Self {
         Self {
             cipher: WzDataCipher::new(&ctx.key.into(), &ctx.initial_iv.into()),
-            offset_cipher: WzOffsetCipher::new(ctx.offset_magic, version.wz_hash()),
+            offset_cipher: WzOffsetCipher::new(version, ctx.offset_magic),
             data_offset,
             no_crypt: ctx.no_crypto,
         }
     }
 
     pub fn from_cfg(cfg: WzConfig, data_offset: u32) -> Self {
-        Self::new(
-            &cfg.region.into(),
-            cfg.version,
-            data_offset,
-        )
+        Self::new(&cfg.region.into(), cfg.version, data_offset)
+    }
+
+    pub fn stream(&self) -> WzDataCryptStream<'_> {
+        self.cipher.stream()
     }
 
     pub fn crypt_inout(&self, buf: InOutBuf<u8>) {

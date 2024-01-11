@@ -1,2 +1,10 @@
 /target
 /Cargo.lock
+
+# Files used for testing which should be ignored for git
+*.rs.old
+
+# Files generated during some tests
+*.wav
+*.png
+*.pcm

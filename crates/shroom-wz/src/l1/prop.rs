@@ -1,23 +1,21 @@
-use std::io::{Read, Seek};
+use std::{io::{Read, Seek}, ops::{Deref, DerefMut}};
 
-use binrw::{binrw, BinRead, BinWrite};
-use derive_more::Unwrap;
+use binrw::{binrw, BinRead, BinWrite, BinWriterExt};
 
 use crate::{
     ctx::{WzImgReadCtx, WzImgWriteCtx},
-    ty::{WzF32, WzInt, WzLong, WzVec},
+    ty::{WzF32, WzInt, WzLong, WzVec}, util::custom_binrw_error,
 };
 
 use super::{
-    obj::WzObject,
-    str::{WzImgStr, WzTypeStr},
+    obj::{WzObject, OBJ_TYPE_VEC2},
+    str::WzImgStr,
 };
 
-#[derive(Debug, Clone)]
-pub struct WzObjectValue {
-    pub len: u32,
-    pub obj: Box<WzObject>,
-}
+
+
+#[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut)]
+pub struct WzObjectValue(pub Box<WzObject>);
 
 impl BinRead for WzObjectValue {
     type Args<'a> = WzImgReadCtx<'a>;
@@ -29,18 +27,12 @@ impl BinRead for WzObjectValue {
     ) -> binrw::BinResult<Self> {
         let len = u32::read_options(reader, endian, ())? as u64;
         let pos = reader.stream_position()?;
-
-        // TODO sub reader
         let obj = Box::new(WzObject::read_options(reader, endian, args)?);
-
-        // We don't read canvas/sound so we need to skip
-        let after = pos + len as u64;
+        // We don't read canvas/sound data so we need to skip It
+        let after = pos + len;
         reader.seek(std::io::SeekFrom::Start(after))?;
 
-        Ok(Self {
-            len: len as u32,
-            obj,
-        })
+        Ok(Self(obj))
     }
 }
 
@@ -53,14 +45,18 @@ impl BinWrite for WzObjectValue {
         endian: binrw::Endian,
         args: Self::Args<'_>,
     ) -> binrw::BinResult<()> {
-        let pos = writer.stream_position()?;
-        self.len.write_le(writer)?;
-        self.obj.write_options(writer, endian, args)?;
-        let end = writer.stream_position()?;
-        let len = end - pos - 4;
+        // Write a dummy length
+        writer.write_type(&0u32, endian)?;
 
-        writer.seek(std::io::SeekFrom::Start(pos))?;
-        (len as u32).write_le(writer)?;
+        // Write the object and record the length
+        let pos = writer.stream_position()?;
+        writer.write_type_args(self.deref(), endian, args)?;
+        let end = writer.stream_position()?;
+        let len = end - pos;
+
+        // Write the actual length
+        writer.seek(std::io::SeekFrom::Start(pos - 4))?;
+        writer.write_type(&(len as u32), endian)?;
         writer.seek(std::io::SeekFrom::Start(end))?;
 
         Ok(())
@@ -70,8 +66,9 @@ impl BinWrite for WzObjectValue {
 #[binrw]
 #[br(little, import_raw(ctx: WzImgReadCtx<'_>))]
 #[bw(little, import_raw(ctx: WzImgWriteCtx<'_>))]
-#[derive(Debug, Clone, Unwrap)]
+#[derive(Debug, Clone)]
 pub enum WzPropValue {
+    // Null value
     #[brw(magic(0u8))]
     Null,
 
@@ -104,6 +101,117 @@ pub enum WzPropValue {
     Obj(#[brw(args_raw(ctx))] WzObjectValue),
 }
 
+impl WzPropValue {
+    pub fn as_str(&self) -> Option<&WzImgStr> {
+        match self {
+            Self::Str(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_str_mut(&mut self) -> Option<&mut WzImgStr> {
+        match self {
+            Self::Str(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_obj(&self) -> Option<&WzObject> {
+        match self {
+            Self::Obj(o) => Some(o.deref()),
+            _ => None,
+        }
+    }
+
+    pub fn as_obj_mut(&mut self) -> Option<&mut WzObject> {
+        match self {
+            Self::Obj(o) => Some(o.deref_mut()),
+            _ => None,
+        }
+    }
+
+    pub fn as_short(&self) -> Option<i16> {
+        match self {
+            Self::Short1(s) => Some(*s),
+            Self::Short2(s) => Some(*s),
+            _ => None,
+        }
+    }
+
+    pub fn as_short_mut(&mut self) -> Option<&mut i16> {
+        match self {
+            Self::Short1(s) => Some(s),
+            Self::Short2(s) => Some(s),
+            _ => None,
+        }
+    }
+
+    pub fn as_int(&self) -> Option<WzInt> {
+        match self {
+            Self::Int1(i) => Some(*i),
+            Self::Int2(i) => Some(*i),
+            _ => None,
+        }
+    }
+
+    pub fn as_int_mut(&mut self) -> Option<&mut WzInt> {
+        match self {
+            Self::Int1(i) => Some(i),
+            Self::Int2(i) => Some(i),
+            _ => None,
+        }
+    }
+
+    pub fn as_long(&self) -> Option<WzLong> {
+        match self {
+            Self::Long(l) => Some(*l),
+            _ => None,
+        }
+    }
+
+    pub fn as_long_mut(&mut self) -> Option<&mut WzLong> {
+        match self {
+            Self::Long(l) => Some(l),
+            _ => None,
+        }
+    }
+
+    pub fn as_f32(&self) -> Option<WzF32> {
+        match self {
+            Self::F32(f) => Some(*f),
+            _ => None,
+        }
+    }
+
+    pub fn as_f32_mut(&mut self) -> Option<&mut WzF32> {
+        match self {
+            Self::F32(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    pub fn as_f64(&self) -> Option<f64> {
+        match self {
+            Self::F64(f) => Some(*f),
+            _ => None,
+        }
+    }
+
+    pub fn as_f64_mut(&mut self) -> Option<&mut f64> {
+        match self {
+            Self::F64(f) => Some(f),
+            _ => None,
+        }
+    }
+
+    pub fn as_null(&self) -> Option<()> {
+        match self {
+            Self::Null => Some(()),
+            _ => None,
+        }
+    }
+}
+
 #[binrw]
 #[br(little, import_raw(ctx: WzImgReadCtx<'_>))]
 #[bw(little, import_raw(ctx: WzImgWriteCtx<'_>))]
@@ -112,7 +220,7 @@ pub struct WzPropertyEntry {
     #[brw(args_raw(ctx))]
     pub name: WzImgStr,
     #[brw(args_raw(ctx))]
-    pub val: WzPropValue,
+    pub value: WzPropValue,
 }
 
 #[binrw]
@@ -125,14 +233,24 @@ pub struct WzProperty {
     pub entries: WzVec<WzPropertyEntry>,
 }
 
+impl WzProperty {
+    pub fn get(&self, name: &str) -> Option<&WzPropValue> {
+        self.entries
+            .0
+            .iter()
+            .find(|e| e.name.as_ref() == name)
+            .map(|e| &e.value)
+    }
+}
+
 #[binrw]
 #[br(little, import_raw(ctx: WzImgReadCtx<'_>))]
 #[bw(little, import_raw(ctx: WzImgWriteCtx<'_>))]
 #[derive(Debug, Clone)]
-pub struct WzUOL {
+pub struct WzLink {
     pub unknown: u8,
     #[brw(args_raw(ctx))]
-    pub entries: WzImgStr,
+    pub link: WzImgStr,
 }
 
 #[binrw]
@@ -150,17 +268,19 @@ impl BinRead for WzConvex2D {
     type Args<'a> = WzImgReadCtx<'a>;
 
     fn read_options<R: Read + Seek>(
-        reader: &mut R,
-        _endian: binrw::Endian,
+        mut reader: &mut R,
+        endian: binrw::Endian,
         args: Self::Args<'_>,
     ) -> binrw::BinResult<Self> {
         let len = WzInt::read_le(reader)?.0 as usize;
         let mut v = Vec::with_capacity(len);
 
         for _ in 0..len {
-            let _ = WzTypeStr::read_le_args(reader, args)?;
-            // TODO: ensure uol str is Vec2
-            v.push(WzVector2D::read_le(reader)?);
+            let ty_str = args.read_ty_str(&mut reader, endian)?;
+            if ty_str.as_bytes() != OBJ_TYPE_VEC2 {
+                return Err(custom_binrw_error(reader, anyhow::format_err!("Vex2 can only consist of Vec2")));
+            }
+            v.push(WzVector2D::read_options(reader, endian, ())?);
         }
 
         Ok(Self(v))

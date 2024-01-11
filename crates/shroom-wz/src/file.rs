@@ -1,7 +1,8 @@
 use std::{
+    cell::RefCell,
     collections::VecDeque,
     fs::File,
-    io::{self, BufRead, BufReader, Cursor, Read, Seek, SeekFrom},
+    io::{self, BufRead, BufReader, Read, Seek, SeekFrom, Write},
     path::Path,
     sync::Arc,
 };
@@ -10,15 +11,12 @@ use anyhow::Context;
 use binrw::BinRead;
 
 use crate::{
-    canvas::Canvas,
-    cipher::WzCipher,
-    ctx::{WzContext, WzImgReadCtx, WzStrTable},
-    l0::{WzDir, WzDirHeader, WzDirEntry, WzHeader, WzImgHeader},
-    l1::{
-        canvas::WzCanvas, obj::WzObject, prop::WzPropValue, ser::WzImgSerializer, sound::WzSound,
-    },
-    ty::WzOffset,
-    util::{BufReadExt, PeekExt, SubReader},
+    crypto::WzCrypto,
+    ctx::{WzContext, WzImgReadCtx},
+    l0::{WzDir, WzDirEntry, WzDirHeader, WzHeader, WzImgHeader},
+    l1::{canvas::WzCanvas, obj::WzObject, sound::WzSound},
+    ty::{WzInt, WzOffset, WzStr},
+    util::{chunked::ChunkedReader, str_table::OffsetStrTable, BufReadExt, PeekExt, SubReader},
     WzConfig,
 };
 pub trait WzIO: BufRead + Seek {}
@@ -26,15 +24,17 @@ impl<T> WzIO for T where T: BufRead + Seek {}
 
 pub struct WzImgReader<R> {
     r: R,
-    crypto: Arc<WzCipher>,
-    str_table: WzStrTable,
+    crypto: Arc<WzCrypto>,
+    str_table: RefCell<OffsetStrTable>,
 }
 
 impl<R> WzImgReader<R>
 where
     R: WzIO,
 {
-    pub fn new(r: R, crypto: Arc<WzCipher>) -> Self {
+    /// Create a new image reader from an existing WzReader
+    /// and the given crypto context
+    pub fn new(r: R, crypto: Arc<WzCrypto>) -> Self {
         Self {
             r,
             crypto,
@@ -42,104 +42,73 @@ where
         }
     }
 
-    pub fn ctx(&self) -> WzImgReadCtx<'_> {
-        WzImgReadCtx::new(&self.crypto, &self.str_table)
+    /// Copy n bytes at the given offset to the writer
+    fn copy_n(&mut self, off: u64, ln: u64, mut w: impl Write) -> io::Result<()> {
+        self.r.seek(SeekFrom::Start(off))?;
+        let mut limited = (&mut self.r).take(ln);
+        std::io::copy(&mut limited, &mut w)?;
+        Ok(())
     }
 
     /// Read the root object for that image
     pub fn read_root_obj(&mut self) -> anyhow::Result<WzObject> {
         self.r.rewind()?;
-        Ok(WzObject::read_le_args(
+        WzObject::read_le_args(
             &mut self.r,
             WzImgReadCtx::new(&self.crypto, &self.str_table),
-        ).context("Root")?)
+        )
+        .context("Root Object")
     }
 
-    /// Read an object with the given object header
-    /*pub fn read_obj(&mut self, obj: &WzObj) -> anyhow::Result<WzObject> {
-        // Check for root
-        let ix = if obj.len.pos == 0 && obj.len.val == 0 {
-            0
-        } else {
-            obj.len.pos + 4
-        };
-
-        // Skip first index
-        self.r.seek(SeekFrom::Start(ix))?;
-        Ok(WzObject::read_le_args(
-            &mut self.r,
-            WzImgReadCtx::new(&self.crypto, &self.str_table),
-        )?)
-    }*/
-
-    fn read_canvas_from<T: BufRead>(mut r: T, canvas: &WzCanvas) -> anyhow::Result<Canvas> {
-        let sz = canvas.raw_bitmap_size() as usize;
-        let mut img_buf = Vec::with_capacity(sz);
-        r.decompress_flate_size(&mut img_buf, sz)?;
-        Ok(Canvas::from_data(img_buf, canvas))
+    /// Read data at the given offset
+    pub fn read_data_at(&mut self, offset: u64, ln: u64, w: impl Write) -> io::Result<()> {
+        self.copy_n(offset, ln, w)?;
+        Ok(())
     }
 
-    pub fn read_canvas(&mut self, canvas: &WzCanvas) -> anyhow::Result<Canvas> {
-        let len = canvas.data_len();
+    /// Read the canvas data at the given offset by the header
+    pub fn read_canvas_data(&mut self, canvas: &WzCanvas, w: impl Write) -> anyhow::Result<()> {
+        let len = canvas.data_len() as u64;
         let off = canvas.data_offset();
-        self.r.seek(SeekFrom::Start(off))?;
+        let canvas_size = canvas.img_data_size() as u64;
 
+        self.r.seek(SeekFrom::Start(off))?;
         let hdr = self.r.peek_u16()?;
         // 5th bit => 3rd bit from the end -> 16-13
         let is_zlib = (hdr & 0xFF) == 0x78;
         let with_preset = hdr & (1 << 13) != 0;
+
+        // Create a new sub reader
+        let mut r = (&mut self.r).take(len);
         // For some reason the is_preset flag is used for chunked encoding
         if is_zlib && !with_preset {
-            let mut sub = (&mut self.r).take(len as u64);
-            Self::read_canvas_from(&mut sub, canvas)
+            r.decompress_flate_size_to(w, canvas_size)?;
         } else {
-            //TODO fix allocation here
-            let mut buf = vec![0; len as usize];
-            self.r.read_chunked_data(&self.crypto, &mut buf, len)?;
-            Self::read_canvas_from(Cursor::new(&buf), canvas)
+            ChunkedReader::new(r, &self.crypto).decompress_flate_size_to(w, canvas_size)?;
         }
+
+        Ok(())
     }
 
-    pub fn read_sound(&mut self, sound: &WzSound) -> anyhow::Result<Vec<u8>> {
-        let ln = sound.data_size();
-        self.r.seek(SeekFrom::Start(sound.offset.pos))?;
-        let mut data = vec![0; ln];
-        self.r.read_exact(&mut data)?;
-
-        Ok(data)
+    /// Read the sound data with the given header
+    pub fn read_sound_data(&mut self, sound: &WzSound, buf: impl Write) -> io::Result<()> {
+        let ln = sound.data_size() as u64;
+        self.copy_n(sound.offset.pos, ln, buf)
     }
 
-    pub fn read_path<'obj>(
+    /// Read the sound data with the given header
+    /// but include the sound header for example the wave 
+    /// header for wav sounds
+    pub fn read_sound_data_with_header(
         &mut self,
-        root: &'obj WzObject,
-        path: &str,
-    ) -> anyhow::Result<&'obj WzObject> {
-        let mut cur = root;
+        sound: &WzSound,
+        buf: impl Write,
+    ) -> io::Result<()> {
+        let ln = sound.data_size();
+        let hdr_size = sound.header.header_size();
 
-        for part in path.split('/') {
-            let WzObject::Property(ref prop) = cur else {
-                anyhow::bail!("Invalid prop: {cur:?}");
-            };
-
-            let next = prop
-                .entries
-                .0
-                .iter()
-                .find(|x| x.name.0.as_str() == part)
-                .ok_or_else(|| anyhow::format_err!("Invalid {path}"))?;
-
-            let obj = match &next.val {
-                WzPropValue::Obj(ref obj) => obj,
-                _ => anyhow::bail!("Invalid obj: {cur:?}"),
-            };
-            cur = &obj.obj;
-        }
-
-        Ok(cur)
-    }
-
-    pub fn into_serializer(self, skip_canvas: bool) -> anyhow::Result<WzImgSerializer<R>> {
-        WzImgSerializer::new(self, skip_canvas)
+        let ln = (ln + hdr_size) as u64;
+        self.copy_n(sound.offset.pos - hdr_size as u64, ln, buf)
     }
 }
 
@@ -147,7 +116,7 @@ where
 pub struct WzReader<R> {
     inner: R,
     data_offset: u64,
-    crypto: Arc<WzCipher>,
+    crypto: Arc<WzCrypto>,
 }
 
 pub type SubWzReader<'a, R> = WzReader<SubReader<'a, R>>;
@@ -183,7 +152,7 @@ where
     fn new(rdr: R, cfg: WzConfig, data_offset: u64) -> Self {
         Self {
             inner: rdr,
-            crypto: WzCipher::from_cfg(cfg, data_offset as u32).into(),
+            crypto: WzCrypto::from_cfg(cfg, data_offset as u32).into(),
             data_offset,
         }
     }
@@ -237,11 +206,11 @@ where
     pub fn checksum(&mut self, offset: u64, ln: u64) -> anyhow::Result<i32> {
         let old = self.inner.stream_position()?;
         self.set_pos(offset)?;
-        let checksum = ln as i32; /*TODO: self.inner..take(ln).wz_checksum()?; */
+        let checksum = self.inner.wz_checksum(ln)?;
         self.set_pos(old)?;
         Ok(checksum)
     }
-    
+
     pub fn traverse_images(&mut self) -> WzImgTraverser<'_, R> {
         let mut q = VecDeque::new();
         q.push_back((
@@ -251,8 +220,13 @@ where
         WzImgTraverser { r: self, q }
     }
 
-    pub fn read_path(&mut self, root: &WzDirEntry, path: &str) -> anyhow::Result<WzDirEntry> {
-        let mut cur = root.clone();
+    pub fn read_path(&mut self, path: &str) -> anyhow::Result<WzDirEntry> {
+        let mut cur = WzDirEntry::Dir(WzDirHeader {
+            name: WzStr::new("root".to_string()),
+            blob_size: WzInt(10000),
+            checksum: WzInt(0),
+            offset: self.root_offset(),
+        });
 
         for part in path.split('/') {
             let WzDirEntry::Dir(dir) = cur else {

@@ -5,6 +5,10 @@ use binrw::{binrw, BinRead, BinWrite, NullString};
 
 use crate::ty::{WzInt, WzOffset, WzStr, WzVec};
 
+pub const WZ_DIR_NULL: u8 = 1;
+pub const WZ_DIR_LINK: u8 = 2;
+pub const WZ_DIR_DIR: u8 = 3;
+pub const WZ_DIR_IMG: u8 = 4;
 
 
 /// Header of a WZ file
@@ -95,11 +99,15 @@ pub struct WzLinkHeader {
     pub offset: WzOffset,
 }
 
-#[derive(BinRead, BinWrite, Debug, Clone, PartialEq)]
+pub type WzNullHeader = [u8; 10];
+
+
+#[derive(BinRead, BinWrite, Debug, Clone, PartialEq, derive_more::From, derive_more::TryInto)]
+#[try_into(owned, ref, ref_mut)]
 #[brw(little, import_raw(ctx: WzContext<'_>))]
 pub enum WzDirEntry {
     #[brw(magic(1u8))]
-    Null([u8; 10]),
+    Null(WzNullHeader),
     #[brw(magic(2u8))]
     Link(#[brw(args_raw(ctx))] WzLinkHeader),
     #[brw(magic(3u8))]
@@ -168,7 +176,7 @@ impl BinRead for WzLinkData {
         reader.seek(io::SeekFrom::Start(args.0.offset_link(offset)))?;
 
         let ty = u8::read_options(reader, endian, ())?;
-        if ty != 4 {
+        if ty != WZ_DIR_IMG {
             // TODO: support dirs? and return a proper erro
             panic!("Expected link type Img, got {}", ty);
         }

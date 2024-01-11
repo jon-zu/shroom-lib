@@ -12,7 +12,7 @@ pub mod default_keys {
 
     pub mod wz {
         pub const DEFAULT_WZ_OFFSET_MAGIC: u32 =
-            u32::from_le_bytes(*include_bytes!("default_keys/wz/offset_magic.bin"));
+            u32::from_be_bytes(*include_bytes!("default_keys/wz/offset_magic.bin"));
         pub const GLOBAL_WZ_IV: &[u8; 16] = include_bytes!("default_keys/wz/global_iv.bin");
         pub const SEA_WZ_IV: &[u8; 16] = include_bytes!("default_keys/wz/sea_iv.bin");
         pub const DEFAULT_WZ_IV: &[u8; 16] = include_bytes!("default_keys/wz/default_iv.bin");

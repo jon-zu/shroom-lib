@@ -1,23 +1,111 @@
 use binrw::{BinRead, BinWrite};
-use derive_more::Unwrap;
 
-use crate::ctx::{WzImgReadCtx, WzImgWriteCtx};
+use crate::{
+    ctx::{WzImgReadCtx, WzImgWriteCtx},
+    util::custom_binrw_error,
+};
 
 use super::{
     canvas::WzCanvas,
-    prop::{WzConvex2D, WzProperty, WzUOL, WzVector2D},
+    prop::{WzConvex2D, WzLink, WzProperty, WzVector2D},
     sound::WzSound,
-    str::WzTypeStr,
 };
 
-#[derive(Debug, Unwrap, Clone)]
+#[derive(Debug, Clone, derive_more::From, derive_more::TryInto)]
+#[try_into(owned, ref, ref_mut)]
 pub enum WzObject {
     Property(WzProperty),
     Canvas(WzCanvas),
-    UOL(WzUOL),
+    Link(WzLink),
     Vec2(WzVector2D),
     Convex2D(WzConvex2D),
     SoundDX8(WzSound),
+}
+
+impl WzObject {
+    pub fn as_property(&self) -> Option<&WzProperty> {
+        match self {
+            Self::Property(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_property_mut(&mut self) -> Option<&mut WzProperty> {
+        match self {
+            Self::Property(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_canvas(&self) -> Option<&WzCanvas> {
+        match self {
+            Self::Canvas(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_canvas_mut(&mut self) -> Option<&mut WzCanvas> {
+        match self {
+            Self::Canvas(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_link(&self) -> Option<&WzLink> {
+        match self {
+            Self::Link(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_link_mut(&mut self) -> Option<&mut WzLink> {
+        match self {
+            Self::Link(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_vec2(&self) -> Option<&WzVector2D> {
+        match self {
+            Self::Vec2(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_vec2_mut(&mut self) -> Option<&mut WzVector2D> {
+        match self {
+            Self::Vec2(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_convex2d(&self) -> Option<&WzConvex2D> {
+        match self {
+            Self::Convex2D(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_convex2d_mut(&mut self) -> Option<&mut WzConvex2D> {
+        match self {
+            Self::Convex2D(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_sound_dx8(&self) -> Option<&WzSound> {
+        match self {
+            Self::SoundDX8(v) => Some(v),
+            _ => None,
+        }
+    }
+
+    pub fn as_sound_dx8_mut(&mut self) -> Option<&mut WzSound> {
+        match self {
+            Self::SoundDX8(v) => Some(v),
+            _ => None,
+        }
+    }
 }
 
 pub const OBJ_TYPE_PROPERTY: &[u8] = b"Property";
@@ -31,31 +119,27 @@ impl BinRead for WzObject {
     type Args<'a> = WzImgReadCtx<'a>;
 
     fn read_options<R: std::io::Read + std::io::Seek>(
-        reader: &mut R,
+        mut reader: &mut R,
         endian: binrw::Endian,
         args: Self::Args<'_>,
     ) -> binrw::BinResult<Self> {
-        let ty_name = WzTypeStr::read_options(reader, endian, args)?;
+        let ty_name = args.read_ty_str(&mut reader, endian)?;
 
-        Ok(match ty_name.0.as_bytes() {
+        Ok(match ty_name.as_bytes() {
             OBJ_TYPE_PROPERTY => Self::Property(WzProperty::read_options(reader, endian, args)?),
             OBJ_TYPE_CANVAS => Self::Canvas(WzCanvas::read_options(reader, endian, args)?),
-            OBJ_TYPE_UOL => Self::UOL(WzUOL::read_options(reader, endian, args)?),
+            OBJ_TYPE_UOL => Self::Link(WzLink::read_options(reader, endian, args)?),
             OBJ_TYPE_VEC2 => Self::Vec2(WzVector2D::read_options(reader, endian, ())?),
             OBJ_TYPE_CONVEX2D => Self::Convex2D(WzConvex2D::read_options(reader, endian, args)?),
-            OBJ_TYPE_SOUND_DX8 => Self::SoundDX8(WzSound::read_options(reader, endian, args)?),
+            OBJ_TYPE_SOUND_DX8 => Self::SoundDX8(WzSound::read_options(reader, endian, ())?),
             _ => {
-                return Err(binrw::Error::Custom {
-                    pos: reader.stream_position().unwrap_or(0),
-                    err: Box::new(anyhow::format_err!("Invalid obj: {ty_name:?}")),
-                })
+                return Err(custom_binrw_error(
+                    reader,
+                    anyhow::format_err!("Invalid object with type: {ty_name:?}"),
+                ))
             }
         })
     }
-}
-
-pub fn wz_ty_str(s: &[u8]) -> WzTypeStr {
-    WzTypeStr::new(String::from_utf8(s.to_vec()).unwrap())
 }
 
 impl BinWrite for WzObject {
@@ -63,37 +147,35 @@ impl BinWrite for WzObject {
 
     fn write_options<W: std::io::Write + std::io::Seek>(
         &self,
-        writer: &mut W,
+        mut writer: &mut W,
         endian: binrw::Endian,
         args: Self::Args<'_>,
     ) -> binrw::BinResult<()> {
         match self {
             WzObject::Property(v) => {
-                wz_ty_str(OBJ_TYPE_PROPERTY).write_le_args(writer, args)?;
+                args.write_ty_str(&mut writer, endian, OBJ_TYPE_PROPERTY)?;
                 v.write_options(writer, endian, args)
             }
             WzObject::Canvas(v) => {
-                wz_ty_str(OBJ_TYPE_CANVAS).write_le_args(writer, args)?;
+                args.write_ty_str(&mut writer, endian, OBJ_TYPE_CANVAS)?;
                 v.write_options(writer, endian, args)
             }
-            WzObject::UOL(v) => {
-                wz_ty_str(OBJ_TYPE_UOL).write_le_args(writer, args)?;
+            WzObject::Link(v) => {
+                args.write_ty_str(&mut writer, endian, OBJ_TYPE_UOL)?;
                 v.write_options(writer, endian, args)
             }
             WzObject::Vec2(v) => {
-                wz_ty_str(OBJ_TYPE_VEC2).write_le_args(writer, args)?;
+                args.write_ty_str(&mut writer, endian, OBJ_TYPE_VEC2)?;
                 v.write_options(writer, endian, ())
             }
             WzObject::Convex2D(v) => {
-                wz_ty_str(OBJ_TYPE_CONVEX2D).write_le_args(writer, args)?;
+                args.write_ty_str(&mut writer, endian, OBJ_TYPE_CONVEX2D)?;
                 v.write_options(writer, endian, args)
             }
             WzObject::SoundDX8(v) => {
-                wz_ty_str(OBJ_TYPE_SOUND_DX8).write_le_args(writer, args)?;
-                v.write_options(writer, endian, args)
+                args.write_ty_str(&mut writer, endian, OBJ_TYPE_SOUND_DX8)?;
+                v.write_options(writer, endian, ())
             }
         }
     }
 }
-
-//pub struct WzWritePropertyObj

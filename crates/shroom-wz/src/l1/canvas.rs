@@ -1,91 +1,68 @@
 use binrw::binrw;
+use binrw::PosValue;
+use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::ctx::{WzImgReadCtx, WzImgWriteCtx};
 use crate::ty::WzInt;
 
 use super::prop::WzProperty;
-use super::WzPosValue;
 
-#[derive(Debug, Clone, Copy)]
-pub struct WzCanvasScaling(pub u8);
+/// Canvas scaling
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, TryFromPrimitive, IntoPrimitive)]
+#[repr(u8)]
+pub enum WzCanvasScaling {
+    S0 = 0,
+    S4 = 4,
+}
 
 impl WzCanvasScaling {
+    /// Whether the canvas is scaled
     pub fn is_scaled(&self) -> bool {
-        self.0 != 0
+        *self as u16 != 0
     }
 
+    /// The scaling factor
     pub fn factor(&self) -> u32 {
-        2u32.pow(self.0 as u32)
+        2u32.pow(*self as u32)
     }
 
+    /// Scale the given value
     pub fn scale(&self, v: u32) -> u32 {
         v * self.factor()
     }
-}
 
-impl TryFrom<u8> for WzCanvasScaling {
-    type Error = anyhow::Error;
-
-    fn try_from(value: u8) -> Result<Self, Self::Error> {
-        let n = value;
-        Ok(Self(match n {
-            0 | 4 => n,
-            _ => anyhow::bail!("Invalid scaling: {n}"),
-        }))
-    }
-}
-impl From<WzCanvasScaling> for u8 {
-    fn from(val: WzCanvasScaling) -> Self {
-        val.0
+    /// Unscale the given value
+    pub fn unscale(&self, v: u32) -> u32 {
+        v / self.factor()
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+/// Pixel format for the canvas
+#[derive(Debug, Copy, Clone, PartialEq, PartialOrd, TryFromPrimitive, IntoPrimitive)]
+#[repr(u16)]
 pub enum WzPixelFormat {
-    BGRA4444,
-    BGRA8888,
-    BGR565,
-    DXT3,
-    DXT5,
+    /// BGRA with 4 bits per channel
+    BGRA4 = 1,
+    /// BGRA with 8 bits per channel
+    BGRA8 = 2,
+    /// BGR with 5 bits for red and blue and 6 bits for green
+    BGR565 = 0x201,
+    /// DXT3 compression
+    DXT3 = 0x402,
+    /// DXT5 compression
+    DXT5 = 0x802,
 }
 
-impl WzPixelFormat {    
-    /// The pixel size in bytes
+impl WzPixelFormat {
+    /// Pixel size in bytes
     pub fn pixel_size(&self) -> usize {
         match self {
-            WzPixelFormat::BGRA4444 => 2,
-            WzPixelFormat::BGRA8888 => 4,
+            WzPixelFormat::BGRA4 => 2,
+            WzPixelFormat::BGRA8 => 4,
             WzPixelFormat::BGR565 => 2,
             WzPixelFormat::DXT3 => 1,
             WzPixelFormat::DXT5 => 1,
         }
-    }
-}
-
-impl TryFrom<WzInt> for WzPixelFormat {
-    type Error = anyhow::Error;
-
-    fn try_from(value: WzInt) -> Result<Self, Self::Error> {
-        Ok(match value.0 as u16 {
-            1 => Self::BGRA4444,
-            2 => Self::BGRA8888,
-            513 => Self::BGR565,
-            1026 => Self::DXT3,
-            2050 => Self::DXT5,
-            v => anyhow::bail!("Invalid pixel format: {v}"),
-        })
-    }
-}
-
-impl From<WzPixelFormat> for WzInt {
-    fn from(val: WzPixelFormat) -> Self {
-        WzInt(match val {
-            WzPixelFormat::BGRA4444 => 1,
-            WzPixelFormat::BGRA8888 => 2,
-            WzPixelFormat::BGR565 => 513,
-            WzPixelFormat::DXT3 => 1026,
-            WzPixelFormat::DXT5 => 2050,
-        })
     }
 }
 
@@ -100,54 +77,73 @@ pub struct WzCanvas {
     pub property: Option<WzProperty>,
     pub width: WzInt,
     pub height: WzInt,
-    #[br(try_map = |x: WzInt| x.try_into())]
-    #[bw(map = |x: &WzPixelFormat| WzInt(x.pixel_size() as i32))]
+    #[br(try_map = |x: WzInt| (x.0 as u16).try_into())]
+    #[bw(map = |x: &WzPixelFormat| WzInt::from(*x as u16))]
     pub pix_fmt: WzPixelFormat,
     #[br(try_map = |x: u8| x.try_into())]
     #[bw(map = |x: &WzCanvasScaling| u8::from(*x))]
     pub scale: WzCanvasScaling,
+    // TODO figure out unknowns
     pub unknown1: u32,
-    pub len: WzPosValue<u32>,
+    pub len: u32,
+    pub unknown2: u8,
+    #[bw(ignore)]
+    pub data: PosValue<()>,
 }
 
 impl WzCanvas {
+    /// Total pixels
     pub fn pixels(&self) -> u32 {
         self.width() * self.height()
     }
 
-    pub fn raw_pixels(&self) -> u32 {
-        self.raw_width() * self.raw_height()
+    /// Pixels of the unscaled source img
+    pub fn img_pixels(&self) -> u32 {
+        self.img_width() * self.img_height()
     }
 
+    /// Size of the img source in bytes
+    pub fn img_data_size(&self) -> usize {
+        self.img_pixels() as usize * self.pix_fmt.pixel_size()
+    }
+
+    /// Dimension of the canvas
+    pub fn dim(&self) -> (u32, u32) {
+        (self.width(), self.height())
+    }
+
+    /// Dimension of the img source
+    pub fn img_dim(&self) -> (u32, u32) {
+        (self.img_height(), self.img_width())
+    }
+
+    /// Height
     pub fn height(&self) -> u32 {
         self.height.0 as u32
     }
 
+    /// Width
     pub fn width(&self) -> u32 {
         self.width.0 as u32
     }
 
-    pub fn raw_height(&self) -> u32 {
-        self.height() / self.scale.factor()
+    /// Height of the source image
+    pub fn img_height(&self) -> u32 {
+        self.scale.unscale(self.height())
     }
 
-    pub fn raw_width(&self) -> u32 {
-        self.width() / self.scale.factor()
+    /// Width of the source image
+    pub fn img_width(&self) -> u32 {
+        self.scale.unscale(self.width())
     }
 
-    pub fn bitmap_size(&self) -> u32 {
-        self.pixels() * self.pix_fmt.pixel_size() as u32
-    }
-
-    pub fn raw_bitmap_size(&self) -> u32 {
-        self.raw_pixels() * self.pix_fmt.pixel_size() as u32
-    }
-
+    /// Data length as specified in the header
     pub fn data_len(&self) -> usize {
-        self.len.val as usize - 1
+        self.len as usize - 1
     }
 
+    /// Data offset
     pub fn data_offset(&self) -> u64 {
-        self.len.pos + 4 + 1
+        self.data.pos
     }
 }
