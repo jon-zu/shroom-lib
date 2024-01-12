@@ -49,7 +49,37 @@ macro_rules! packet_wrap {
 
         impl<'de, $($gen_ty: $crate::DecodePacket<'de>),*> $crate::DecodePacket<'de> for $name<$($gen_ty,)*> {
             fn decode(pr: &mut $crate::PacketReader<'de>) -> $crate::PacketResult<Self> {
-                Ok(<$into_ty>::decode(pr)?.into())
+                Ok(<$from_ty>::decode(pr)?.into())
+            }
+        }
+    };
+}
+
+#[macro_export]
+macro_rules! packet_try_wrap {
+    (
+        $name:ident
+        <
+            $($gen_ty:ident),*
+        >,
+        $into_ty:ty,
+        $try_from_ty:ty
+    ) => {
+        impl<$($gen_ty: $crate::EncodePacket),*> $crate::EncodePacket for $name<$($gen_ty,)*> {
+            const SIZE_HINT: $crate::SizeHint = <$into_ty>::SIZE_HINT;
+
+            fn encode_len(&self) -> usize {
+                <$into_ty>::from(self.clone()).encode_len()
+            }
+
+            fn encode<B: bytes::BufMut>(&self, pw: &mut $crate::PacketWriter<B>) -> $crate::PacketResult<()> {
+                <$into_ty>::from(self.clone()).encode(pw)
+            }
+        }
+
+        impl<'de, $($gen_ty: $crate::DecodePacket<'de>),*> $crate::DecodePacket<'de> for $name<$($gen_ty,)*> {
+            fn decode(pr: &mut $crate::PacketReader<'de>) -> $crate::PacketResult<Self> {
+                Ok(<$try_from_ty>::decode(pr)?.try_into()?)
             }
         }
     };
