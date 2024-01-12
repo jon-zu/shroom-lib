@@ -28,7 +28,7 @@ impl SizeHint {
         })
     }
 
-    /// Sum two Option<usize>
+    /// Sum two usize Options
     /// When const traits become stable Add can be implemented
     pub const fn add(self, rhs: Self) -> Self {
         Self(match (self.0, rhs.0) {

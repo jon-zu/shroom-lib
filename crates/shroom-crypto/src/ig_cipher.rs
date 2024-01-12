@@ -79,6 +79,7 @@ impl IgContext {
         a ^ self.shuffle(key[0])
     }
 
+    /// Decrypt the given data with the given key
     fn dec(&self, data: u8, key: u32) -> u8 {
         let key = key.to_le_bytes();
         let a = self.shuffle(key[0]) ^ data;
@@ -93,6 +94,7 @@ impl IgContext {
     }
 }
 
+/// Hasher for the IG hash
 pub struct IgHasher<'ctx> {
     state: u32,
     ctx: &'ctx IgContext,
@@ -120,6 +122,7 @@ impl<'ctx> Hasher for IgHasher<'ctx> {
     }
 }
 
+/// IgCipher
 pub struct IgCipher {
     ctx: IgContext,
     state: u32,

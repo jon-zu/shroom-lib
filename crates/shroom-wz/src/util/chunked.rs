@@ -65,7 +65,7 @@ impl<'a, R: Read> ChunkedReader<'a, R> {
             inner: r,
             ix: 0,
             buf: [0; CHUNK_BUF_LEN],
-            crypto_stream: cipher.stream(),
+            crypto_stream: cipher.crypt_stream(),
             remaining_chunk: 0,
             buf_len: 0,
         }
@@ -212,7 +212,6 @@ mod tests {
         assert_eq!(rw.get_ref().len(), 4096 + (4096 / 128) * 4);
 
         // Read chunks back
-        let n = data.len();
         rw.rewind().unwrap();
 
         let mut r = ChunkedReader::new(&mut rw, &crypto);

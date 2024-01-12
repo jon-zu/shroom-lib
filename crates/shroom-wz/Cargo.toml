@@ -8,18 +8,16 @@ default = []
 mmap = ["memmap2"]
 webp = ["webp-animation"]
 
+[dev-dependencies]
+quickcheck = "1"
+quickcheck_macros = "1"
+
 [dependencies]
-webp-animation = { version = "0.9", optional = true }
 aes = "0.8"
 anyhow = { version = "1" }
 binrw = "0.13"
+bit-struct = "0.3.2"
 bytemuck = "1"
-image = "0.24"
-itoa = "1"
-flate2 = { version = "1", features = ["zlib"] }
-memmap2 = { version = "0.9", optional = true }
-texpresso = "2"
-serde = { version = "1", features = ["derive"] }
 derive_more = { version = "1.0.0-beta.6", features = [
     "from",
     "into",
@@ -28,12 +26,16 @@ derive_more = { version = "1.0.0-beta.6", features = [
     "try_into",
     "into_iterator",
 ] }
-uuid = { version = "1", features = ["v4"] }
-indexmap = { version = "2", features = ["serde"] }
 encoding_rs = "0.8"
-serde_json = "1"
-shroom-crypto = { version = "0.1.0", path = "../shroom-crypto" }
-rgb = "0.8.37"
-bit-struct = "0.3.2"
+indexmap = { version = "2", features = ["serde"] }
+flate2 = { version = "1", features = ["zlib"] }
+image = "0.24"
+memmap2 = { version = "0.9", optional = true }
 num_enum = "0.7.2"
-derive_builder = "0.12.0"
+rgb = "0.8.37"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+texpresso = "2"
+uuid = { version = "1", features = ["v4"] }
+webp-animation = { version = "0.9", optional = true }
+shroom-crypto = { version = "0.1.0", path = "../shroom-crypto" }

@@ -1,15 +1,16 @@
 use std::io;
 
-use crate::ctx::WzContext;
+use crate::{ctx::WzContext, util::custom_binrw_error};
 use binrw::{binrw, BinRead, BinWrite, NullString};
 
 use crate::ty::{WzInt, WzOffset, WzStr, WzVec};
+
+pub mod archive_list;
 
 pub const WZ_DIR_NULL: u8 = 1;
 pub const WZ_DIR_LINK: u8 = 2;
 pub const WZ_DIR_DIR: u8 = 3;
 pub const WZ_DIR_IMG: u8 = 4;
-
 
 /// Header of a WZ file
 #[binrw]
@@ -25,15 +26,13 @@ pub struct WzHeader {
 /// Directory with entries
 #[binrw]
 #[brw(little, import_raw(ctx: WzContext<'_>))]
-#[derive(Debug, Clone)]
-pub struct WzDir {
-    #[brw(args_raw(ctx))]
-    pub entries: WzVec<WzDirEntry>,
-}
+#[derive(Debug, Clone, derive_more::From, derive_more::Into, derive_more::IntoIterator)]
+#[into_iterator(owned, ref, ref_mut)]
+pub struct WzDir(#[brw(args_raw(ctx))] pub WzVec<WzDirEntry>);
 
 impl WzDir {
     pub fn get(&self, name: &str) -> Option<&WzDirEntry> {
-        self.entries.0.iter().find(|e| match e {
+        self.0.iter().find(|e| match e {
             WzDirEntry::Null(_) => false,
             WzDirEntry::Link(_) => false, // TODO: should this be handled
             WzDirEntry::Dir(dir) => dir.name.as_str() == name,
@@ -42,7 +41,7 @@ impl WzDir {
     }
 
     pub fn get_mut(&mut self, name: &str) -> Option<&mut WzDirEntry> {
-        self.entries.0.iter_mut().find(|e| match e {
+        self.0.iter_mut().find(|e| match e {
             WzDirEntry::Null(_) => false,
             WzDirEntry::Link(_) => false, // TODO: should this be handled
             WzDirEntry::Dir(dir) => dir.name.as_str() == name,
@@ -51,7 +50,7 @@ impl WzDir {
     }
 }
 
-/// Header of a 
+/// Header of a
 #[binrw]
 #[brw(little, import_raw(ctx: WzContext<'_>))]
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -100,7 +99,6 @@ pub struct WzLinkHeader {
 }
 
 pub type WzNullHeader = [u8; 10];
-
 
 #[derive(BinRead, BinWrite, Debug, Clone, PartialEq, derive_more::From, derive_more::TryInto)]
 #[try_into(owned, ref, ref_mut)]
@@ -155,8 +153,6 @@ impl WzDirEntry {
     }
 }
 
-
-
 #[derive(Debug, PartialEq, Clone)]
 pub struct WzLinkData {
     pub offset: u32,
@@ -177,12 +173,14 @@ impl BinRead for WzLinkData {
 
         let ty = u8::read_options(reader, endian, ())?;
         if ty != WZ_DIR_IMG {
-            // TODO: support dirs? and return a proper erro
-            panic!("Expected link type Img, got {}", ty);
+            // TODO: Support directories here?
+            return Err(custom_binrw_error(
+                reader,
+                anyhow::format_err!("Expected link type Img, got {ty}"),
+            ));
         }
 
         let link_img = WzImgHeader::read_options(reader, endian, args)?;
-
         // Seek back
         reader.seek(io::SeekFrom::Start(old_pos))?;
 

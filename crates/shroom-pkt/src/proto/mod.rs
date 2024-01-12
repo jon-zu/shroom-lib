@@ -3,7 +3,7 @@ pub mod conditional;
 pub mod list;
 pub mod option;
 pub mod padding;
-//pub mod partial;
+pub mod partial;
 pub mod primitive;
 pub mod r#enum;
 pub mod string;

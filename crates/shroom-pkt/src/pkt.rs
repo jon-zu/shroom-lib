@@ -4,22 +4,6 @@ use bytes::{Bytes, BytesMut, BufMut};
 
 use crate::{Error, PacketReader, ShroomOpCode, PacketWriter, EncodePacket, opcode::HasOpCode, DecodePacket};
 
-#[macro_export]
-macro_rules! packet_with_opcode {
-    ($packet_ty:ty, $op:path, $ty:ty) => {
-        impl $crate::ShroomPacket for $packet_ty {
-            type OpCode = $ty;
-            const OPCODE: Self::OpCode = $op;
-        }
-    };
-    ($packet_ty:ty, $ty:ident::$op:ident) => {
-        impl $crate::ShroomPacket for $packet_ty {
-            type OpCode = $ty;
-            const OPCODE: Self::OpCode = $ty::$op;
-        }
-    };
-}
-
 #[derive(Debug, Clone)]
 pub struct Packet(Bytes);
 

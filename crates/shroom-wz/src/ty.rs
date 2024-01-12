@@ -1,9 +1,9 @@
 use std::{
     io::{Read, Seek},
-    ops::{Deref, DerefMut, Neg},
+    ops::Neg,
 };
 
-use binrw::{binrw, BinRead, BinWrite, VecArgs};
+use binrw::{binrw, BinRead, BinWrite, BinWriterExt, VecArgs};
 
 use crate::{ctx::WzContext, util::custom_binrw_error};
 
@@ -151,6 +151,54 @@ pub struct WzF32(
     pub f32,
 );
 
+pub struct WzStrRef8<'a>(pub &'a [u8]);
+
+impl<'a> BinWrite for WzStrRef8<'a> {
+    type Args<'b> = WzContext<'b>;
+
+    fn write_options<W: std::io::prelude::Write + Seek>(
+        &self,
+        writer: &mut W,
+        endian: binrw::Endian,
+        args: Self::Args<'_>,
+    ) -> binrw::prelude::BinResult<()> {
+        let n = self.0.len();
+        if n >= 128 {
+            writer.write_type(&i8::MIN, endian)?;
+            writer.write_type(&(n as i32).neg(), endian)?;
+        } else {
+            writer.write_type(&(n as i8).neg(), endian)?;
+        }
+
+        args.0.write_str8(writer, self.0)?;
+        Ok(())
+    }
+}
+
+pub struct WzStrRef16<'a>(pub &'a [u16]);
+
+impl<'a> BinWrite for WzStrRef16<'a> {
+    type Args<'b> = WzContext<'b>;
+
+    fn write_options<W: std::io::prelude::Write + Seek>(
+        &self,
+        writer: &mut W,
+        endian: binrw::Endian,
+        args: Self::Args<'_>,
+    ) -> binrw::prelude::BinResult<()> {
+        let n = self.0.len();
+        if n >= 127 {
+            i8::MAX.write_options(writer, endian, ())?;
+            (n as i32).write_options(writer, endian, ())?;
+        } else {
+            (n as i8).write_options(writer, endian, ())?;
+        }
+
+        args.0.write_str16(writer, self.0)?;
+        Ok(())
+    }
+}
+
 /// String reference for faster writing
 pub struct WzStrRef<'a>(pub &'a str);
 
@@ -168,36 +216,28 @@ impl<'a> BinWrite for WzStrRef<'a> {
         if is_latin1 {
             // TODO: use a shared encode buffer from the context
             let data = encoding_rs::mem::encode_latin1_lossy(self.0);
-            let mut data = data.into_owned();
-            let n = data.len();
-            if n >= 128 {
-                i8::MIN.write_options(writer, endian, ())?;
-                (n as i32).neg().write_options(writer, endian, ())?;
-            } else {
-                (n as i8).neg().write_options(writer, endian, ())?;
-            }
-
-            args.0.encode_str8(data.as_mut_slice());
-            data.write_options(writer, endian, ())?;
+            WzStrRef8(&data).write_options(writer, endian, args)?;
         } else {
-            let mut data = self.0.encode_utf16().collect::<Vec<_>>();
-            let n = data.len();
-            if n >= 127 {
-                i8::MAX.write_options(writer, endian, ())?;
-                (n as i32).write_options(writer, endian, ())?;
-            } else {
-                (n as i8).write_options(writer, endian, ())?;
-            }
-
-            args.0.encode_str16(data.as_mut_slice());
-            data.write_options(writer, endian, ())?;
+            let data = self.0.encode_utf16().collect::<Vec<_>>();
+            WzStrRef16(&data).write_options(writer, endian, args)?;
         };
         Ok(())
     }
 }
 
 /// String
-#[derive(Clone, PartialEq, Eq, Debug, Hash)]
+#[derive(
+    Clone,
+    PartialEq,
+    Eq,
+    Debug,
+    Hash,
+    Default,
+    derive_more::From,
+    derive_more::Into,
+    derive_more::Deref,
+    derive_more::DerefMut,
+)]
 pub struct WzStr(String);
 
 impl WzStr {
@@ -209,20 +249,6 @@ impl WzStr {
 impl std::fmt::Display for WzStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.0)
-    }
-}
-
-impl Deref for WzStr {
-    type Target = String;
-
-    fn deref(&self) -> &Self::Target {
-        &self.0
-    }
-}
-
-impl DerefMut for WzStr {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.0
     }
 }
 
@@ -258,7 +284,7 @@ impl BinRead for WzStr {
             let mut data = vec![0u16; ln];
             reader.read_exact(bytemuck::cast_slice_mut(data.as_mut_slice()))?;
             args.0.decode_str16(&mut data);
-            String::from_utf16(&data).map_err(|err| custom_binrw_error(reader, err.into()))?
+            String::from_utf16(&data).map_err(|err| custom_binrw_error(reader, err))?
         };
 
         Ok(WzStr::new(str))
@@ -282,6 +308,7 @@ impl BinWrite for WzStr {
 #[derive(
     Debug,
     Clone,
+    PartialEq,
     derive_more::IntoIterator,
     derive_more::From,
     derive_more::Into,
@@ -377,5 +404,68 @@ impl BinWrite for WzOffset {
         let pos = writer.stream_position()? as u32;
         let enc_off = args.0.encrypt_offset(self.0, pos);
         enc_off.write_options(writer, endian, ())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::iter;
+
+    use quickcheck_macros::quickcheck;
+
+    use crate::{
+        crypto::WzCrypto,
+        util::test_util::{
+            test_bin_write_read, test_bin_write_read_default_quick, test_bin_write_read_quick,
+        },
+    };
+
+    use super::*;
+
+    #[test]
+    fn str() {
+        let crypt = WzCrypto::from_cfg(crate::GMS95, 2);
+        let ctx = WzContext::new(&crypt);
+
+        for s in [
+            "",
+            "a",
+            "abc",
+            &iter::once('😀').take(4096).collect::<String>(),
+        ] {
+            let s = WzStr::new(s.to_string());
+            test_bin_write_read(s, binrw::Endian::Little, ctx, ctx);
+        }
+    }
+
+    #[quickcheck]
+    fn int(xs: i32) -> bool {
+        test_bin_write_read_default_quick(WzInt(xs), binrw::Endian::Little)
+    }
+
+    #[quickcheck]
+    fn long(xs: i64) -> bool {
+        test_bin_write_read_default_quick(WzLong(xs), binrw::Endian::Little)
+    }
+
+    #[quickcheck]
+    fn f32(xs: f32) -> bool {
+        // Filter nan
+        if xs.is_nan() {
+            return true;
+        }
+        test_bin_write_read_default_quick(WzF32(xs), binrw::Endian::Little)
+    }
+
+    #[quickcheck]
+    fn offset(xs: u32) -> bool {
+        let crypt = WzCrypto::from_cfg(crate::GMS95, 0);
+        let ctx = WzContext::new(&crypt);
+        test_bin_write_read_quick(WzOffset(xs), binrw::Endian::Little, ctx, ctx)
+    }
+
+    #[quickcheck]
+    fn vec(xs: Vec<u32>) -> bool {
+        test_bin_write_read_default_quick(WzVec(xs), binrw::Endian::Little)
     }
 }

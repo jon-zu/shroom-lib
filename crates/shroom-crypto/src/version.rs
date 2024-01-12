@@ -15,10 +15,12 @@ impl From<ShroomVersion> for u16 {
 }
 
 impl ShroomVersion {
+    /// Creates a new version
     pub const fn new(v: u16) -> Self {
         Self(v)
     }
 
+    /// Gets the raw version
     pub fn raw(&self) -> u16 {
         self.0
     }

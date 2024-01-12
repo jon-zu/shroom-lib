@@ -1,17 +1,23 @@
 use crate::crypto::WzCrypto;
+use std::fmt::{Debug, Display};
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 
 #[cfg(test)]
 pub(crate) mod test_util;
 
+pub mod array_chunks;
 pub mod chunked;
+pub mod path;
 pub mod str_table;
 
 //pub mod animation;
 
-pub fn custom_binrw_error<R: std::io::Read + std::io::Seek>(
+pub fn custom_binrw_error<
+    R: std::io::Read + std::io::Seek,
+    E: Debug + Display + Sync + Send + 'static,
+>(
     mut r: R,
-    err: anyhow::Error,
+    err: E,
 ) -> binrw::Error {
     binrw::Error::Custom {
         pos: r.stream_position().unwrap_or(0),
@@ -62,6 +68,12 @@ pub trait BufReadExt: BufRead {
     fn wz_checksum(&mut self, n: u64) -> io::Result<i32> {
         self.bytes()
             .take(n as usize)
+            .try_fold(0, |acc, b| b.map(|b| wz_checksum_step(acc, b)))
+    }
+
+    /// Calculates the checksum of the next n bytes
+    fn wz_checksum_eof(&mut self) -> io::Result<i32> {
+        self.bytes()
             .try_fold(0, |acc, b| b.map(|b| wz_checksum_step(acc, b)))
     }
 

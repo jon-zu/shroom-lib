@@ -1,4 +1,4 @@
-/// Mark an enum which implements TryFromPrimitive and Into<Primitive>
+/// Mark an enum which implements TryFromPrimitive and `Into<Primitive>`
 /// as packet encode/decode-able
 #[macro_export]
 macro_rules! mark_shroom_enum {

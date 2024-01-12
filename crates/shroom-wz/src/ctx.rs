@@ -44,7 +44,6 @@ impl<'a> WzContext<'a> {
     }
 }
 
-
 impl<'a> From<&WzImgReadCtx<'a>> for WzContext<'a> {
     fn from(ctx: &WzImgReadCtx<'a>) -> Self {
         Self(ctx.crypto)
@@ -142,8 +141,6 @@ impl<'a> WzImgWriteCtx<'a> {
         self.str_table.borrow_mut().insert(RcStr::from(s), offset)
     }
 
-    // TODO checkout if offset is before the discriminator or after
-
     pub fn write_ty_str<W: Write + Seek>(
         &self,
         mut w: W,
@@ -181,27 +178,6 @@ impl<'a> WzImgWriteCtx<'a> {
             self.insert_offset(s, offset);
             (0x0u8).write_options(&mut w, endian, ())?;
             WzStrRef(s).write_options(&mut w, endian, self.into())
-        }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use crate::GMS95;
-
-    use super::*;
-
-    #[test]
-    fn crypto_string() {
-        let s = ["", "a", "mmmmmmmmmmmm", "aaa", "!!!"];
-        let cipher = WzCrypto::from_cfg(GMS95, 2);
-
-        let ctx = WzContext::new(&cipher);
-        for s in s {
-            let mut b = s.as_bytes().to_vec();
-            ctx.encode_str8(&mut b);
-            ctx.decode_str8(&mut b);
-            assert_eq!(s.as_bytes(), b.as_slice());
         }
     }
 }

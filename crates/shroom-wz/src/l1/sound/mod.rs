@@ -240,7 +240,7 @@ mod tests {
             binrw::Endian::Little,
         );
 
-        // +16: mp3 hdr
+        // +12: mp3 hdr
         const MP3_HDR_SIZE: usize = WAVE_HDR_SIZE + 12;
         test_bin_write_read_default(
             WzSound {

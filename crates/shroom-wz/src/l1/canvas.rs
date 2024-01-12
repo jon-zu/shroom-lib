@@ -1,5 +1,7 @@
 use binrw::binrw;
 use binrw::PosValue;
+use derive_more::Deref;
+use derive_more::DerefMut;
 use num_enum::{IntoPrimitive, TryFromPrimitive};
 
 use crate::ctx::{WzImgReadCtx, WzImgWriteCtx};
@@ -70,7 +72,7 @@ impl WzPixelFormat {
 #[br(little, import_raw(ctx: WzImgReadCtx<'_>))]
 #[bw(little, import_raw(ctx: WzImgWriteCtx<'_>))]
 #[derive(Debug, Clone)]
-pub struct WzCanvas {
+pub struct WzCanvasHeader {
     pub unknown: u8,
     pub has_property: u8,
     #[brw(if(has_property.eq(&1)), args_raw(ctx))]
@@ -87,11 +89,9 @@ pub struct WzCanvas {
     pub unknown1: u32,
     pub len: u32,
     pub unknown2: u8,
-    #[bw(ignore)]
-    pub data: PosValue<()>,
 }
 
-impl WzCanvas {
+impl WzCanvasHeader {
     /// Total pixels
     pub fn pixels(&self) -> u32 {
         self.width() * self.height()
@@ -141,9 +141,36 @@ impl WzCanvas {
     pub fn data_len(&self) -> usize {
         self.len as usize - 1
     }
+}
 
+
+#[binrw]
+#[br(little, import_raw(ctx: WzImgReadCtx<'_>))]
+#[bw(little, import_raw(ctx: WzImgWriteCtx<'_>))]
+#[derive(Debug, Clone)]
+pub struct WzCanvas {
+    #[brw(args_raw(ctx))]
+    pub hdr: WzCanvasHeader,
+    #[bw(ignore)]
+    pub data: PosValue<()>,
+}
+
+impl Deref for WzCanvas {
+    type Target = WzCanvasHeader;
+    fn deref(&self) -> &Self::Target {
+        &self.hdr
+    }
+}
+
+impl DerefMut for WzCanvas {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.hdr
+    }
+}
+
+impl WzCanvas {
     /// Data offset
     pub fn data_offset(&self) -> u64 {
         self.data.pos
-    }
+    } 
 }

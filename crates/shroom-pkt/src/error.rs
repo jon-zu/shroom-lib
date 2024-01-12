@@ -40,6 +40,8 @@ pub enum Error {
     OutOfCapacity,
     #[error("No opcode)")]
     NoOpCode,
+    #[error("Invalid all bits")]
+    InvalidAllBits
 }
 
 impl Error {

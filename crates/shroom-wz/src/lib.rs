@@ -12,7 +12,7 @@ pub mod util;
 use crypto::WzCryptoContext;
 #[cfg(feature = "mmap")]
 pub use file::mmap::{WzReaderMmap, WzReaderSharedMmap};
-pub use file::WzReader;
+pub use file::WzArchiveReader;
 
 use shroom_crypto::ShroomVersion;
 

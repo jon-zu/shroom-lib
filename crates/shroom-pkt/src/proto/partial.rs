@@ -2,7 +2,7 @@ use std::marker::PhantomData;
 
 use crate::{
     DecodePacket, EncodePacket, PacketReader, PacketResult, PacketWriter,
-    SizeHint, packet_wrap,
+    SizeHint,
 };
 
 pub trait PartialData<'de>: Sized {
@@ -26,6 +26,30 @@ impl<Flags> Default for AllFlags<Flags> {
     }
 }
 
+impl<T: bitflags::Flags> EncodePacket for AllFlags<T>
+    where T::Bits: EncodePacket {
+    const SIZE_HINT: SizeHint = SizeHint::NONE;
+
+    fn encode_len(&self) -> usize {
+        T::all().bits().encode_len()
+    }
+
+    fn encode<B: bytes::BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
+        T::all().bits().encode(pw)
+    }
+}
+
+impl<'de, T: bitflags::Flags> DecodePacket<'de> for AllFlags<T>
+    where T::Bits: DecodePacket<'de> {
+    fn decode(pr: &mut PacketReader<'de>) -> PacketResult<Self> {
+        let bits = T::Bits::decode(pr)?;
+        if bits != T::all().bits() {
+            return Err(crate::Error::InvalidAllBits);
+        }
+        Ok(Self(PhantomData))
+    }
+}
+
 /*
 
 
@@ -44,7 +68,7 @@ impl<Flags: bitflags::Flags> PacketTryWrapped for AllFlags<Flags> {
     }
 }*/
 
-packet_wrap!(AllFlags<Flags>, Flags, Flags);
+//packet_wrap!(AllFlags<Flags>, Flags, Flags);
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct PartialFlag<Hdr, FlagData> {

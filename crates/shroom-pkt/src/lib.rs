@@ -22,6 +22,6 @@ pub use writer::PacketWriter;
 // Re-export proto
 pub use proto::*;
 
-pub use opcode::ShroomOpCode;
+pub use opcode::{ShroomOpCode, HasOpCode};
 pub use pkt::Packet;
 pub use shroom_pkt_derive::*;

@@ -24,16 +24,16 @@ pub trait HasOpCode {
 /// Helper macro to easily implment `HasOpCode` for a packet
 /// Example ```packet_opcode!(PingPacket, SendOpCode::Ping);```
 #[macro_export]
-macro_rules! packet_opcode {
+macro_rules! with_opcode {
     ($packet_ty:ty, $op:path, $ty:ty) => {
-        impl $crate::HasOpCode for $packet_ty {
+        impl $crate::opcode::HasOpCode for $packet_ty {
             type OpCode = $ty;
 
             const OPCODE: Self::OpCode = $op;
         }
     };
     ($packet_ty:ty, $ty:ident::$op:ident) => {
-        impl $crate::HasOpCode for $packet_ty {
+        impl $crate::opcode::HasOpCode for $packet_ty {
             type OpCode = $ty;
 
             const OPCODE: Self::OpCode = $ty::$op;
