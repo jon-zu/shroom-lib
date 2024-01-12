@@ -79,6 +79,9 @@ macro_rules! packet_try_wrap {
 
         impl<'de, $($gen_ty: $crate::DecodePacket<'de>),*> $crate::DecodePacket<'de> for $name<$($gen_ty,)*> {
             fn decode(pr: &mut $crate::PacketReader<'de>) -> $crate::PacketResult<Self> {
+                // False positive in case try_into returns a NetError
+                // elsewise we want the implicit conversio
+                #[allow(clippy::needless_question_mark)]
                 Ok(<$try_from_ty>::decode(pr)?.try_into()?)
             }
         }
