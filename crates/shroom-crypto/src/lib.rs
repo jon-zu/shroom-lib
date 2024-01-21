@@ -1,5 +1,6 @@
 pub mod ig_cipher;
 pub mod version;
+pub mod str;
 
 pub mod default_keys {
     pub const DEFAULT_IG_SHUFFLE: &[u8; 256] = include_bytes!("default_keys/ig_shuffle.bin");
