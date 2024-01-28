@@ -84,6 +84,14 @@ impl AsRef<[u8]> for Message {
     }
 }
 
+impl Deref for Message {
+    type Target = [u8];
+
+    fn deref(&self) -> &Self::Target {
+        self.0.deref()
+    }
+}
+
 impl TryFrom<Packet> for Message {
     type Error = Error;
 
@@ -110,10 +118,10 @@ impl TryFrom<PacketWriter> for Message {
 pub trait EncodeMessage: Sized {
     fn encode_message<B: BufMut>(self, buf: B) -> Result<(), Error>; 
 
-    fn to_message(self) -> Message {
+    fn to_message(self) -> Result<Message, Error> {
         let mut buf = BytesMut::new();
-        self.encode_message(&mut buf).unwrap();
-        Message(buf.into())
+        self.encode_message(&mut buf)?;
+        Ok(Message(buf.into()))
     }
 }
 
