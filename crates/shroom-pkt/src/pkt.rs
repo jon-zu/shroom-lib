@@ -47,6 +47,7 @@ impl From<BytesMut> for Packet {
 }
 
 /// A message with an opcode
+#[derive(Debug, Clone)]
 pub struct Message(Packet);
 
 impl Message {
