@@ -4,10 +4,14 @@
 macro_rules! mark_shroom_enum {
     ($enum_ty:ty) => {
         impl $crate::EncodePacket for $enum_ty {
-            const SIZE_HINT: $crate::SizeHint = <$enum_ty as num_enum::TryFromPrimitive>::Primitive::SIZE_HINT;
+            const SIZE_HINT: $crate::SizeHint =
+                <$enum_ty as num_enum::TryFromPrimitive>::Primitive::SIZE_HINT;
 
-            fn encode<B: bytes::BufMut>(&self, pw: &mut $crate::PacketWriter<B>) -> $crate::PacketResult<()> {
-                let p: <$enum_ty as num_enum::TryFromPrimitive>::Primitive  = (*self).into();
+            fn encode<B: bytes::BufMut>(
+                &self,
+                pw: &mut $crate::PacketWriter<B>,
+            ) -> $crate::PacketResult<()> {
+                let p: <$enum_ty as num_enum::TryFromPrimitive>::Primitive = (*self).into();
                 p.encode(pw)
             }
         }

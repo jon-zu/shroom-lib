@@ -4,7 +4,7 @@ use chrono::{DateTime, Utc};
 use derive_more::{From, Into};
 use nt_time::FileTime;
 
-use crate::{packet_wrap, EncodePacket, DecodePacket};
+use crate::{packet_wrap, DecodePacket, EncodePacket};
 
 /// Represents ticks from the win32 API `GetTickCount`
 #[derive(Debug, From, Into, Clone, Copy)]

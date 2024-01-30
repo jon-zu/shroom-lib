@@ -7,7 +7,7 @@ use crate::{PacketReader, PacketResult, PacketWriter, SizeHint};
 use super::{DecodePacket, DecodePacketOwned, EncodePacket};
 
 /// Discriminant for Option
-pub trait ShroomOptionDiscriminant: EncodePacket + DecodePacketOwned{
+pub trait ShroomOptionDiscriminant: EncodePacket + DecodePacketOwned {
     const NONE_VALUE: Self;
     const SOME_VALUE: Self;
     fn has_value(&self) -> bool;

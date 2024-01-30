@@ -64,10 +64,7 @@ pub struct WzConfig {
 
 impl WzConfig {
     pub const fn new(region: WzRegion, version: ShroomVersion) -> Self {
-        Self {
-            region,
-            version,
-        }
+        Self { region, version }
     }
 
     pub const fn global(version: ShroomVersion) -> Self {

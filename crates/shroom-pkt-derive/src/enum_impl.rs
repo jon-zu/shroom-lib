@@ -1,20 +1,20 @@
-
-use darling::{ast, util, FromDeriveInput, FromVariant, FromField, FromAttributes};
+use darling::{ast, util, FromAttributes, FromDeriveInput, FromField, FromVariant};
 use quote::{format_ident, ToTokens};
 use syn::Ident;
 
 #[derive(Debug)]
 pub struct ReprTy(syn::Type);
 
-
 impl FromAttributes for ReprTy {
     fn from_attributes(attrs: &[syn::Attribute]) -> darling::Result<Self> {
-        let repr = attrs.iter().find(|a| a.path().is_ident("repr")).expect("Must have repr attribute");
+        let repr = attrs
+            .iter()
+            .find(|a| a.path().is_ident("repr"))
+            .expect("Must have repr attribute");
         let ty: syn::Type = repr.parse_args()?;
         Ok(Self(ty))
     }
 }
-
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(
@@ -26,14 +26,14 @@ pub struct ShroomPacketEnum {
     ident: Ident,
     data: ast::Data<ShroomEnumVariant, util::Ignored>,
     attrs: Vec<syn::Attribute>,
-   //generics: syn::Generics,
+    //generics: syn::Generics,
 }
 
 #[derive(Debug, FromField)]
 pub struct ShroomEnumField {
-    ty: syn::Type
+    ty: syn::Type,
 }
-    
+
 #[derive(Debug, FromVariant)]
 pub struct ShroomEnumVariant {
     ident: Ident,
@@ -61,7 +61,6 @@ impl ShroomEnumVariant {
             }
         }
     }
-
 
     fn gen_decode(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
@@ -148,7 +147,7 @@ impl ToTokens for ShroomPacketEnum {
                         #(#dec_fields)*
                         _ => return Err(shroom_pkt::Error::InvalidEnumDiscriminant(disc as usize))
                     })
-                } 
+                }
             }
         ));
     }

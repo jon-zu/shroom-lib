@@ -1,4 +1,4 @@
-use shroom_pkt::{Packet, pkt::EncodeMessage};
+use shroom_pkt::{pkt::EncodeMessage, Packet};
 use tokio::sync::mpsc;
 
 use crate::{
@@ -109,7 +109,10 @@ where
     }
 
     pub fn send_packet(&mut self, pkt: Packet) -> anyhow::Result<()> {
-        self.socket.tx_send.try_send(pkt.into()).map_err(|_| anyhow::format_err!("Unable to send"))?;
+        self.socket
+            .tx_send
+            .try_send(pkt.into())
+            .map_err(|_| anyhow::format_err!("Unable to send"))?;
         Ok(())
     }
 

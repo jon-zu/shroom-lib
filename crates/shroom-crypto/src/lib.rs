@@ -1,10 +1,11 @@
 pub mod ig_cipher;
-pub mod version;
 pub mod str;
+pub mod version;
 
 pub mod default_keys {
     pub const DEFAULT_IG_SHUFFLE: &[u8; 256] = include_bytes!("default_keys/ig_shuffle.bin");
-    pub const DEFAULT_IG_SEED: u32 = u32::from_le_bytes(*include_bytes!("default_keys/ig_seed.bin"));
+    pub const DEFAULT_IG_SEED: u32 =
+        u32::from_le_bytes(*include_bytes!("default_keys/ig_seed.bin"));
 
     pub mod net {
         pub const DEFAULT_AES_KEY: &[u8; crate::AES_KEY_LEN] =
@@ -56,8 +57,6 @@ pub type ShuffleKey = [u8; 256];
 pub type PacketHeader = [u8; PACKET_HEADER_LEN];
 
 pub type SharedIgContext = Arc<IgContext>;
-
-
 
 /// Crypto Context providing all keys for this crypto
 /// Should be used via `SharedCryptoContext` to avoid

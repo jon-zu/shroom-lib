@@ -41,7 +41,7 @@ pub enum Error {
     #[error("No opcode)")]
     NoOpCode,
     #[error("Invalid all bits")]
-    InvalidAllBits
+    InvalidAllBits,
 }
 
 impl Error {

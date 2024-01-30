@@ -125,7 +125,7 @@ impl ShroomTransport for turmoil::net::TcpStream {
 
 /// Codec trait
 pub trait ShroomCodec: Sized + Unpin + Send + Sync {
-    type Encoder:  for<'a> Encoder<&'a[u8], Error = NetError> + Send + 'static;
+    type Encoder: for<'a> Encoder<&'a [u8], Error = NetError> + Send + 'static;
     type Decoder: Decoder<Item = Packet, Error = NetError> + Send + 'static;
     type Transport: ShroomTransport;
 

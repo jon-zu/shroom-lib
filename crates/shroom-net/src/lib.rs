@@ -1,10 +1,10 @@
 pub mod codec;
-pub mod stream;
 pub mod error;
+pub mod stream;
 
-pub use shroom_pkt::Packet;
 pub use error::NetError;
-pub use stream::ShroomStream;
 pub use shroom_crypto::{CryptoContext, SharedCryptoContext};
+pub use shroom_pkt::Packet;
+pub use stream::ShroomStream;
 
 pub type NetResult<T> = Result<T, error::NetError>;

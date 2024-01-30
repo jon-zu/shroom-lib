@@ -1,8 +1,8 @@
 use std::{io::Read, iter};
 
 use arrayvec::{ArrayString, ArrayVec};
-use shroom_crypto::{RoundKey, ROUND_KEY_LEN, ShroomVersion};
-use shroom_pkt::{DecodePacket, EncodePacket, PacketReader, PacketWriter, packet_wrap};
+use shroom_crypto::{RoundKey, ShroomVersion, ROUND_KEY_LEN};
+use shroom_pkt::{packet_wrap, DecodePacket, EncodePacket, PacketReader, PacketWriter};
 use tokio::io::{AsyncRead, AsyncReadExt};
 
 use crate::{NetError, NetResult};
@@ -77,7 +77,6 @@ impl Handshake {
         buf
     }
 }
-
 
 pub type HandshakeTuple = (
     u16,

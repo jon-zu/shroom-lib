@@ -143,7 +143,6 @@ impl WzCanvasHeader {
     }
 }
 
-
 #[binrw]
 #[br(little, import_raw(ctx: WzImgReadCtx<'_>))]
 #[bw(little, import_raw(ctx: WzImgWriteCtx<'_>))]
@@ -172,5 +171,5 @@ impl WzCanvas {
     /// Data offset
     pub fn data_offset(&self) -> u64 {
         self.data.pos
-    } 
+    }
 }

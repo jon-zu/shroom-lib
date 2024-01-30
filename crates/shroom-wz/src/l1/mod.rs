@@ -19,10 +19,7 @@ pub struct WzPosValue<T> {
 }
 impl WzPosValue<()> {
     pub fn new(pos: u64) -> WzPosValue<()> {
-        Self {
-            val: (),
-            pos,
-        }
+        Self { val: (), pos }
     }
 }
 

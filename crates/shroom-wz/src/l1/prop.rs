@@ -1,18 +1,20 @@
-use std::{io::{Read, Seek}, ops::{Deref, DerefMut}};
+use std::{
+    io::{Read, Seek},
+    ops::{Deref, DerefMut},
+};
 
 use binrw::{binrw, BinRead, BinWrite, BinWriterExt};
 
 use crate::{
     ctx::{WzImgReadCtx, WzImgWriteCtx},
-    ty::{WzF32, WzInt, WzLong, WzVec}, util::custom_binrw_error,
+    ty::{WzF32, WzInt, WzLong, WzVec},
+    util::custom_binrw_error,
 };
 
 use super::{
     obj::{WzObject, OBJ_TYPE_VEC2},
     str::WzImgStr,
 };
-
-
 
 #[derive(Debug, Clone, derive_more::Deref, derive_more::DerefMut)]
 pub struct WzObjectValue(pub Box<WzObject>);
@@ -278,7 +280,10 @@ impl BinRead for WzConvex2D {
         for _ in 0..len {
             let ty_str = args.read_ty_str(&mut reader, endian)?;
             if ty_str.as_bytes() != OBJ_TYPE_VEC2 {
-                return Err(custom_binrw_error(reader, anyhow::format_err!("Vex2 can only consist of Vec2")));
+                return Err(custom_binrw_error(
+                    reader,
+                    anyhow::format_err!("Vex2 can only consist of Vec2"),
+                ));
             }
             v.push(WzVector2D::read_options(reader, endian, ())?);
         }

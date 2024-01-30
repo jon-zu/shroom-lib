@@ -121,7 +121,10 @@ impl<'a, const N: usize> WzDataCryptStream<'a, N> {
     /// Resets the stream
     pub fn reset(&mut self) {
         self.ix = 0;
-        self.ofb = Aes256Ofb::from_core(ofb::OfbCore::inner_iv_init(&self.cipher.aes, &self.cipher.iv));
+        self.ofb = Aes256Ofb::from_core(ofb::OfbCore::inner_iv_init(
+            &self.cipher.aes,
+            &self.cipher.iv,
+        ));
     }
 
     /// Crypts an in out buffer
@@ -192,7 +195,7 @@ mod tests {
 
         const M: usize = N * 2;
 
-        for n in [0, 1, 2, 3, M, M-1, M, M+1] {
+        for n in [0, 1, 2, 3, M, M - 1, M, M + 1] {
             // Crypt in one pass
             let mut data = vec![1; n];
             wz_cipher.crypt(&mut data);

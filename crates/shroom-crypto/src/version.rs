@@ -25,7 +25,6 @@ impl ShroomVersion {
         self.0
     }
 
-
     /// Inverts the version bitwise
     pub fn invert(&self) -> Self {
         Self(!self.0)
@@ -47,7 +46,8 @@ impl ShroomVersion {
     /// Calculates the encrypted wz version
     pub fn wz_encrypt(&self) -> u16 {
         // Xor each byte of the version hash
-        self.wz_hash().to_be_bytes()
+        self.wz_hash()
+            .to_be_bytes()
             .iter()
             .fold(0xFF, |acc, &b| acc ^ b as u16)
     }
@@ -62,7 +62,6 @@ mod tests {
         assert_eq!(ShroomVersion::new(95).invert().raw() as i16, -96);
         assert_eq!(ShroomVersion::new(83).invert().raw() as i16, -84);
     }
-
 
     #[test]
     fn version_wz() {

@@ -7,7 +7,6 @@ use cipher::{
 
 use super::{default_keys, ShuffleKey};
 
-
 /// Context for the ig crypto functions, used to create the hasher and cipher
 #[derive(Debug, Clone)]
 pub struct IgContext {

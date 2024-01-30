@@ -2,7 +2,7 @@ use std::io::Cursor;
 
 use bytes::Buf;
 
-use super::{error::Error, ShroomOpCode, PacketResult};
+use super::{error::Error, PacketResult, ShroomOpCode};
 
 use super::shroom128_from_bytes;
 
@@ -12,8 +12,7 @@ pub struct PacketReader<'a> {
     inner: Cursor<&'a [u8]>,
 }
 
-impl<'a, T: AsRef<[u8]>> From<&'a T> for PacketReader<'a>
-{
+impl<'a, T: AsRef<[u8]>> From<&'a T> for PacketReader<'a> {
     fn from(v: &'a T) -> Self {
         Self::new(v.as_ref())
     }

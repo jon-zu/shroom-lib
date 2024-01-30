@@ -9,7 +9,7 @@ use cipher::{
 };
 use ofb::OfbCore;
 
-use crate::{RoundKey, default_keys::net::DEFAULT_AES_KEY, ig_cipher::IgContext};
+use crate::{default_keys::net::DEFAULT_AES_KEY, ig_cipher::IgContext, RoundKey};
 
 type Aes256Ofb<'a> = ofb::Ofb<&'a aes::Aes256>;
 
@@ -97,7 +97,6 @@ impl ShroomPacketCipher {
     pub fn update_round_key<F: FnOnce(RoundKey) -> RoundKey>(&mut self, f: F) {
         self.iv = f(self.round_key()).expand();
     }
-
 
     /// Updates the current round key
     pub fn update_round_key_ig(&mut self, ig_ctx: &IgContext) {

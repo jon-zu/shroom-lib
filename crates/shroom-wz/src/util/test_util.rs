@@ -1,8 +1,6 @@
-use std::{io::{Cursor, Seek}, path::Path};
+use std::io::{Cursor, Seek};
 
 use binrw::{BinRead, BinReaderExt, BinWrite, BinWriterExt, Endian};
-
-
 
 pub fn test_bin_write_read<T: BinWrite + BinRead + std::fmt::Debug + PartialEq>(
     value: T,
@@ -26,7 +24,7 @@ pub fn test_bin_write_read_quick<T: BinWrite + BinRead + std::fmt::Debug + Parti
     endian: Endian,
     args_r: <T as BinRead>::Args<'_>,
     args_w: <T as BinWrite>::Args<'_>,
-)-> bool  {
+) -> bool {
     let mut rw = Cursor::new(Vec::new());
     rw.write_type_args(&value, endian, args_w)
         .expect("failed to write value to buffer");
@@ -50,12 +48,4 @@ where
     T: BinWrite<Args<'a> = ()> + BinRead<Args<'a> = ()> + std::fmt::Debug + PartialEq,
 {
     test_bin_write_read_quick(value, endian, Default::default(), Default::default())
-}
-
-
-
-pub fn get_from_home(path: impl AsRef<Path>) -> std::path::PathBuf {
-    #[allow(deprecated)]
-    let home = std::env::home_dir().unwrap();
-    home.join(path)
 }

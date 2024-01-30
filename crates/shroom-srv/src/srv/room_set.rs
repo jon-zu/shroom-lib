@@ -1,6 +1,6 @@
 use std::{collections::HashMap, ptr::NonNull};
 
-use shroom_pkt::{util::packet_buf::PacketBuf, Packet, pkt::EncodeMessage};
+use shroom_pkt::{pkt::EncodeMessage, util::packet_buf::PacketBuf, Packet};
 use tokio::sync::mpsc;
 
 use crate::{actor::TickActorRunner, util::encode_buffer::EncodeBuf};

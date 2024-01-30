@@ -217,7 +217,9 @@ pub trait RoomContext: Context {
 pub trait RoomHandler: Sized + Send + 'static {
     type RoomId: ServerId;
     type Ctx: RoomContext<RoomId = Self::RoomId> + Send;
-    type SessionHandler: RoomSessionHandler<RoomHandler = Self, RoomId = Self::RoomId> + Send + 'static;
+    type SessionHandler: RoomSessionHandler<RoomHandler = Self, RoomId = Self::RoomId>
+        + Send
+        + 'static;
 
     fn room_id(&self) -> Self::RoomId;
 

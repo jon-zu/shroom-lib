@@ -25,7 +25,6 @@ impl<'a> PathTraverser<'a> {
         Some(path)
     }
 
-
     pub fn remaining(&self) -> &'a str {
         self.p
     }

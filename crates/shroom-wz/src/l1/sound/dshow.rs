@@ -127,7 +127,12 @@ impl BinRead for WaveHeader {
         Ok(match fmt {
             WAVE_FORMAT_PCM => Self::Pcm(PcmWaveHeader::read_options(reader, endian, ())?),
             WAVE_FORMAT_MP3 => Self::Mpeg3(Mpeg3WaveHeader::read_options(reader, endian, ())?),
-            _ => return Err(custom_binrw_error(reader, anyhow::anyhow!("Unknown wave format: {}", fmt))),
+            _ => {
+                return Err(custom_binrw_error(
+                    reader,
+                    anyhow::anyhow!("Unknown wave format: {}", fmt),
+                ))
+            }
         })
     }
 }

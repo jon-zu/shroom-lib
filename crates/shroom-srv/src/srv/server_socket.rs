@@ -12,7 +12,6 @@ use tokio::sync::mpsc;
 
 use super::room_set::PktMsg;
 
-
 pub type PacketMsgTx = mpsc::Sender<PktMsg>;
 pub type PacketMsgRx = mpsc::Receiver<PktMsg>;
 
@@ -84,7 +83,10 @@ pub struct ServerSocketHandle {
 }
 
 impl ServerSocketHandle {
-    fn new<C: ShroomCodec + 'static>(conn: ShroomStream<C>, peer_addr: IpAddr) -> Result<Self, NetError> {
+    fn new<C: ShroomCodec + 'static>(
+        conn: ShroomStream<C>,
+        peer_addr: IpAddr,
+    ) -> Result<Self, NetError> {
         let (tx_w, rx_w) = mpsc::channel(16);
         let (tx_r, rx_r) = mpsc::channel(16);
 

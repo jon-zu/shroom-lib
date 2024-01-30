@@ -1,4 +1,7 @@
-use std::{ffi::{CStr, CString}, io::{Write, self}};
+use std::{
+    ffi::{CStr, CString},
+    io::{self, Write},
+};
 
 const STRING_KEY_SIZE: usize = 16;
 pub const DEFAULT_STRING_KEY: [u8; STRING_KEY_SIZE] = [
@@ -75,19 +78,18 @@ impl StringCipher {
 
     pub fn encrypt_str(&self, s: CString, seed: u8, mut w: impl Write) -> io::Result<()> {
         w.write_all(&[seed])?;
-        let mut  v = s.into_bytes();
+        let mut v = s.into_bytes();
         self.encrypt(&mut v, seed);
         w.write_all(&v)?;
         w.write_all(&[0])?;
         Ok(())
-    } 
+    }
 }
-
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     #[test]
     fn key() {
         assert_eq!(

@@ -1,9 +1,6 @@
 use std::marker::PhantomData;
 
-use crate::{
-    DecodePacket, EncodePacket, PacketReader, PacketResult, PacketWriter,
-    SizeHint,
-};
+use crate::{DecodePacket, EncodePacket, PacketReader, PacketResult, PacketWriter, SizeHint};
 
 pub trait PartialData<'de>: Sized {
     type Flags: bitflags::Flags;
@@ -27,7 +24,9 @@ impl<Flags> Default for AllFlags<Flags> {
 }
 
 impl<T: bitflags::Flags> EncodePacket for AllFlags<T>
-    where T::Bits: EncodePacket {
+where
+    T::Bits: EncodePacket,
+{
     const SIZE_HINT: SizeHint = SizeHint::NONE;
 
     fn encode_len(&self) -> usize {
@@ -40,7 +39,9 @@ impl<T: bitflags::Flags> EncodePacket for AllFlags<T>
 }
 
 impl<'de, T: bitflags::Flags> DecodePacket<'de> for AllFlags<T>
-    where T::Bits: DecodePacket<'de> {
+where
+    T::Bits: DecodePacket<'de>,
+{
     fn decode(pr: &mut PacketReader<'de>) -> PacketResult<Self> {
         let bits = T::Bits::decode(pr)?;
         if bits != T::all().bits() {

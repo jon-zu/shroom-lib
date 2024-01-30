@@ -1,4 +1,4 @@
-use crate::{PacketHeader, PACKET_HEADER_LEN, RoundKey};
+use crate::{PacketHeader, RoundKey, PACKET_HEADER_LEN};
 
 use super::round_key::RoundKeyBytes;
 

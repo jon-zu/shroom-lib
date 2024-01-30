@@ -54,7 +54,7 @@ impl PacketBuf {
 
 #[cfg(test)]
 mod tests {
-    use derive_more::{Into, From};
+    use derive_more::{From, Into};
 
     use crate::{opcode::HasOpCode, packet_wrap};
 

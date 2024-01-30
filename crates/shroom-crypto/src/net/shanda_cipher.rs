@@ -119,7 +119,6 @@ impl ShandaCipher {
 mod tests {
     use crate::ShandaCipher;
 
-
     #[test]
     fn en_dec_shanda() {
         let data = b"abcdef";

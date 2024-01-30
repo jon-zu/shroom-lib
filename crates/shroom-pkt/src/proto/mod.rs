@@ -1,17 +1,18 @@
 pub mod bits;
 pub mod conditional;
+pub mod r#enum;
+pub mod euclid;
 pub mod list;
 pub mod option;
 pub mod padding;
 pub mod partial;
 pub mod primitive;
-pub mod r#enum;
 pub mod string;
 pub mod time;
-pub mod euclid;
 
 use bytes::BufMut;
 
+use crate::{Packet, PacketReader, PacketResult, PacketWriter, SizeHint};
 pub use conditional::{CondEither, CondOption, PacketConditional};
 pub use list::{
     ShroomIndexList, ShroomIndexList16, ShroomIndexList32, ShroomIndexList64, ShroomIndexList8,
@@ -23,7 +24,6 @@ pub use option::{
 };
 pub use padding::Padding;
 pub use time::{ShroomDurationMs16, ShroomDurationMs32, ShroomExpirationTime, ShroomTime};
-use crate::{PacketReader, PacketResult, PacketWriter, Packet, SizeHint};
 
 #[macro_export]
 macro_rules! packet_wrap {
@@ -143,7 +143,7 @@ pub trait DecodePacket<'de>: Sized {
     fn decode_complete(pr: &mut PacketReader<'de>) -> anyhow::Result<Self> {
         let res = Self::decode(pr)?;
         if !pr.remaining_slice().is_empty() {
-            anyhow::bail!("Still remaining data: {:?}", pr.remaining_slice());
+            anyhow::bail!("Complete decode with remaining data: {:?}", pr.remaining_slice());
         }
         Ok(res)
     }
@@ -203,7 +203,7 @@ pub trait DecodePacketOwned: for<'de> DecodePacket<'de> {}
 impl<T> DecodePacketOwned for T where T: for<'de> DecodePacket<'de> {}
 
 /// Tuple support helper
-macro_rules! impl_packet {
+macro_rules! impl_tuple_encode_decode {
     // List of idents splitted by names or well tuple types here
     ( $($name:ident)* ) => {
         // Expand tuples and add a generic bound
@@ -257,7 +257,7 @@ macro_rules! impl_for_tuples {
     };
 }
 
-impl_for_tuples!(impl_packet);
+impl_for_tuples!(impl_tuple_encode_decode);
 
 #[cfg(test)]
 mod tests {

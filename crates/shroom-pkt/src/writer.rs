@@ -1,6 +1,6 @@
 use bytes::{BufMut, BytesMut};
 
-use crate::{ShroomOpCode, Error, PacketResult, Packet};
+use crate::{Error, Packet, PacketResult, ShroomOpCode};
 
 use super::{packet_str_len, shroom128_to_bytes};
 

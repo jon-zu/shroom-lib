@@ -16,7 +16,6 @@ impl StrOffsetTable {
     }
 }
 
-
 #[derive(Debug, Default)]
 pub struct OffsetStrTable(HashMap<Offset, RcStr>);
 

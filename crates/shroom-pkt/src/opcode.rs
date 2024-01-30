@@ -1,7 +1,9 @@
 use crate::{error::Error, PacketResult};
 
 /// OpCode trait which allows conversion from and to the opcode from an `u16`
-pub trait ShroomOpCode: TryFrom<u16> + Into<u16> + Copy + Clone + Send + Sync + PartialEq + Eq {
+pub trait ShroomOpCode:
+    TryFrom<u16> + Into<u16> + Copy + Clone + Send + Sync + PartialEq + Eq
+{
     /// Parses the opcode from an u16
     fn get_opcode(v: u16) -> PacketResult<Self> {
         Self::try_from(v).map_err(|_| Error::InvalidOpCode(v))
@@ -19,7 +21,6 @@ pub trait HasOpCode {
     /// OpCode value
     const OPCODE: Self::OpCode;
 }
-
 
 /// Helper macro to easily implment `HasOpCode` for a packet
 /// Example ```packet_opcode!(PingPacket, SendOpCode::Ping);```

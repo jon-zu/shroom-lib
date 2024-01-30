@@ -8,9 +8,8 @@ pub const MSG_PER_TICK: usize = 100;
 
 #[derive(Debug, Default)]
 struct Shared {
-    cancel: AtomicBool
+    cancel: AtomicBool,
 }
-
 
 pub trait TickActor {
     type Msg: Send + 'static;
@@ -29,7 +28,9 @@ pub struct TickActorHandle<A: TickActor> {
 
 impl<A: TickActor> TickActorHandle<A> {
     pub fn cancel(&self) {
-        self.shared.cancel.store(true, std::sync::atomic::Ordering::Relaxed);
+        self.shared
+            .cancel
+            .store(true, std::sync::atomic::Ordering::Relaxed);
     }
 }
 
@@ -38,7 +39,7 @@ pub struct TickActorRunner<A: TickActor> {
     actor: A,
     rx: mpsc::Receiver<A::Msg>,
     update_interval: GameInterval,
-    shared: Arc<Shared>
+    shared: Arc<Shared>,
 }
 
 impl<A: TickActor + Send + 'static> TickActorRunner<A> {
@@ -47,7 +48,7 @@ impl<A: TickActor + Send + 'static> TickActorRunner<A> {
             actor,
             rx,
             update_interval: GameInterval::new(1),
-            shared: Arc::default()
+            shared: Arc::default(),
         }
     }
 
@@ -73,7 +74,11 @@ impl<A: TickActor + Send + 'static> TickActorRunner<A> {
     }
 
     pub async fn run(&mut self, ctx: &mut A::Ctx<'_>) -> anyhow::Result<()> {
-        while !self.shared.cancel.load(std::sync::atomic::Ordering::Relaxed) {
+        while !self
+            .shared
+            .cancel
+            .load(std::sync::atomic::Ordering::Relaxed)
+        {
             self.run_once(ctx)?;
             ctx.wait_tick().await;
         }

@@ -53,7 +53,6 @@ impl RoundKey {
         Self(key)
     }
 
-
     /// Returns a Roundkey just containing zeros
     pub const fn zero() -> Self {
         Self::new([0; 4])

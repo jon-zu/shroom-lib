@@ -9,7 +9,7 @@ use std::{
 use bytes::BufMut;
 use futures::Future;
 use shroom_net::codec::{legacy::LegacyCodec, LocalShroomTransport};
-use shroom_pkt::{EncodePacket, PacketReader, PacketResult, PacketWriter, Packet};
+use shroom_pkt::{EncodePacket, Packet, PacketReader, PacketResult, PacketWriter};
 
 use turmoil::net::{TcpListener, TcpStream};
 
@@ -185,7 +185,8 @@ impl SessionHandler for MockSessionHandler {
         let msg = MockMsg::try_from_bytes(packet.deref())?;
         msg.apply(&mut self.acc);
 
-        sck.send(MockMsgReq(self.acc).to_packet().unwrap()).map_err(|_| anyhow::format_err!("Unable to send"))?;
+        sck.send(MockMsgReq(self.acc).to_packet().unwrap())
+            .map_err(|_| anyhow::format_err!("Unable to send"))?;
 
         Ok(())
     }
@@ -232,7 +233,8 @@ impl RoomSessionHandler for MockHandler {
         let msg = MockMsg::try_from_bytes(packet.deref())?;
         msg.apply(&mut self.acc);
 
-        _sck.send(MockMsgReq(self.acc).to_packet().unwrap()).map_err(|_| anyhow::format_err!("Unable to send"))?;
+        _sck.send(MockMsgReq(self.acc).to_packet().unwrap())
+            .map_err(|_| anyhow::format_err!("Unable to send"))?;
 
         //ctx.room_sessions.broadcast_encode(MockMsgReq(self.acc))?;
 
@@ -371,7 +373,9 @@ pub async fn run_mock_client() -> anyhow::Result<()> {
     ];
     let mut acc = 0;
     for msg in msgs.iter() {
-        socket.send(msg.to_packet().unwrap()).map_err(|_| anyhow::format_err!("Unable to send"))?;
+        socket
+            .send(msg.to_packet().unwrap())
+            .map_err(|_| anyhow::format_err!("Unable to send"))?;
         let p = socket.recv().await.unwrap();
         let mut pr = p.into_reader();
         acc = pr.read_u32()?;

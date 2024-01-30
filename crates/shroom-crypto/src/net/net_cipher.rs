@@ -1,6 +1,8 @@
-use cipher::{KeyIvInit, inout::InOutBuf, StreamCipher};
+use cipher::{inout::InOutBuf, KeyIvInit, StreamCipher};
 
-use crate::{ShroomPacketCipher, SharedCryptoContext, ShroomVersion, RoundKey, PacketHeader, ShandaCipher};
+use crate::{
+    PacketHeader, RoundKey, ShandaCipher, SharedCryptoContext, ShroomPacketCipher, ShroomVersion,
+};
 
 use super::header;
 
@@ -67,7 +69,7 @@ impl<const SHANDA: bool> NetCipher<SHANDA> {
 
 #[cfg(test)]
 mod tests {
-    use crate::{RoundKey, net::net_cipher::NetCipher};
+    use crate::{net::net_cipher::NetCipher, RoundKey};
 
     use super::{SharedCryptoContext, ShroomVersion};
     const V: ShroomVersion = ShroomVersion::new(95);

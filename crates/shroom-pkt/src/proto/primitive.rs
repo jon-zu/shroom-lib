@@ -103,10 +103,7 @@ macro_rules! impl_dec_enc {
         impl EncodePacket for $ty {
             const SIZE_HINT: SizeHint = $crate::SizeHint::new(std::mem::size_of::<$ty>());
 
-            fn encode<B: bytes::BufMut>(
-                &self,
-                pw: &mut PacketWriter<B>,
-            ) -> PacketResult<()> {
+            fn encode<B: bytes::BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
                 $enc(pw, *self)
             }
 

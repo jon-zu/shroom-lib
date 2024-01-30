@@ -9,11 +9,7 @@ use super::{DecodePacket, EncodePacket};
 /// Helper trait for dealing with conditional En/decoding
 pub trait PacketConditional<'de>: Sized {
     /// Encode if if the cond evaluates to true
-    fn encode_cond<B: BufMut>(
-        &self,
-        cond: bool,
-        pw: &mut PacketWriter<B>,
-    ) -> PacketResult<()>;
+    fn encode_cond<B: BufMut>(&self, cond: bool, pw: &mut PacketWriter<B>) -> PacketResult<()>;
     /// Decode if the cond evaluates to true
     fn decode_cond(cond: bool, pr: &mut PacketReader<'de>) -> PacketResult<Self>;
     /// Length based on cond
@@ -32,10 +28,7 @@ impl<T> Default for CondOption<T> {
 
 impl<T: EncodePacket> EncodePacket for CondOption<T> {
     fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
-        self.0
-            .as_ref()
-            .map(|p| p.encode(pw))
-            .unwrap_or(Ok(()))
+        self.0.as_ref().map(|p| p.encode(pw)).unwrap_or(Ok(()))
     }
 
     const SIZE_HINT: SizeHint = SizeHint::NONE;
@@ -49,11 +42,7 @@ impl<'de, T> PacketConditional<'de> for CondOption<T>
 where
     T: EncodePacket + DecodePacket<'de>,
 {
-    fn encode_cond<B: BufMut>(
-        &self,
-        _cond: bool,
-        pw: &mut PacketWriter<B>,
-    ) -> PacketResult<()> {
+    fn encode_cond<B: BufMut>(&self, _cond: bool, pw: &mut PacketWriter<B>) -> PacketResult<()> {
         if let Some(ref p) = self.0 {
             p.encode(pw)?;
         }
@@ -61,11 +50,7 @@ where
     }
 
     fn decode_cond(cond: bool, pr: &mut PacketReader<'de>) -> PacketResult<Self> {
-        Ok(Self(if cond {
-            Some(T::decode(pr)?)
-        } else {
-            None
-        }))
+        Ok(Self(if cond { Some(T::decode(pr)?) } else { None }))
     }
 
     fn encode_len_cond(&self, cond: bool) -> usize {
@@ -83,11 +68,7 @@ where
     L: EncodePacket + DecodePacket<'de>,
     R: EncodePacket + DecodePacket<'de>,
 {
-    fn encode_cond<B: BufMut>(
-        &self,
-        _cond: bool,
-        pw: &mut PacketWriter<B>,
-    ) -> PacketResult<()> {
+    fn encode_cond<B: BufMut>(&self, _cond: bool, pw: &mut PacketWriter<B>) -> PacketResult<()> {
         either::for_both!(self.0.as_ref(), v => v.encode(pw))
     }
 

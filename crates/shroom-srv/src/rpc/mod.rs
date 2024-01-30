@@ -8,7 +8,7 @@ use shroom_net::{
     codec::{ShroomCodec, ShroomTransport},
     ShroomStream,
 };
-use shroom_pkt::{Packet, pkt::EncodeMessage};
+use shroom_pkt::{pkt::EncodeMessage, Packet};
 use tokio::net::{TcpListener, ToSocketAddrs};
 use tokio_stream::wrappers::TcpListenerStream;
 

@@ -1,8 +1,10 @@
 use std::ops::Deref;
 
-use bytes::{Bytes, BytesMut, BufMut};
+use bytes::{BufMut, Bytes, BytesMut};
 
-use crate::{Error, PacketReader, ShroomOpCode, PacketWriter, EncodePacket, opcode::HasOpCode, DecodePacket};
+use crate::{
+    opcode::HasOpCode, DecodePacket, EncodePacket, Error, PacketReader, PacketWriter, ShroomOpCode,
+};
 
 #[derive(Debug, Clone)]
 pub struct Packet(Bytes);
@@ -10,9 +12,7 @@ pub struct Packet(Bytes);
 impl Packet {
     /// Creates a new shared `Packet` from a static slice.
     pub const fn from_static(bytes: &'static [u8]) -> Self {
-        Self(Bytes::from_static(
-            bytes,
-        ))
+        Self(Bytes::from_static(bytes))
     }
 
     pub fn into_reader(&self) -> PacketReader<'_> {
@@ -53,9 +53,8 @@ pub struct Message(Packet);
 impl Message {
     /// Gets the opcode as u16 value
     pub fn opcode_value(&self) -> u16 {
-        u16::from_be_bytes(self.0[0..2].try_into().unwrap())
+        u16::from_be_bytes(self.0[0..2].try_into().expect("Message opcode"))
     }
-
 
     /// Gets the typed opcode of the message
     pub fn opcode<OP: ShroomOpCode>(&self) -> Result<OP, Error> {
@@ -104,7 +103,6 @@ impl TryFrom<Packet> for Message {
     }
 }
 
-
 impl TryFrom<PacketWriter> for Message {
     type Error = Error;
 
@@ -113,10 +111,9 @@ impl TryFrom<PacketWriter> for Message {
     }
 }
 
-
 /// Marks a type as encode-able as message
 pub trait EncodeMessage: Sized {
-    fn encode_message<B: BufMut>(self, buf: B) -> Result<(), Error>; 
+    fn encode_message<B: BufMut>(self, buf: B) -> Result<(), Error>;
 
     fn to_message(self) -> Result<Message, Error> {
         let mut buf = BytesMut::new();
@@ -136,7 +133,9 @@ impl<T: EncodePacket + HasOpCode> EncodeMessage for T {
 
 /// Marks a type as decode-able into a message
 pub trait DecodeMessage<'de> {
-    fn decode_message(msg: &'de Message) -> Result<Self, Error> where Self: Sized;
+    fn decode_message(msg: &'de Message) -> Result<Self, Error>
+    where
+        Self: Sized;
 }
 
 impl<'de, T: DecodePacket<'de> + HasOpCode> DecodeMessage<'de> for T {
