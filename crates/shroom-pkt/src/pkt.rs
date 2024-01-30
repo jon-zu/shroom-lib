@@ -53,7 +53,7 @@ pub struct Message(Packet);
 impl Message {
     /// Gets the opcode as u16 value
     pub fn opcode_value(&self) -> u16 {
-        u16::from_be_bytes(self.0[0..2].try_into().expect("Message opcode"))
+        u16::from_le_bytes(self.0[0..2].try_into().expect("Message opcode"))
     }
 
     /// Gets the typed opcode of the message
