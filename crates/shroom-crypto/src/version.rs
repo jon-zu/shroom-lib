@@ -26,6 +26,7 @@ impl ShroomVersion {
     }
 
     /// Inverts the version bitwise
+    #[must_use]
     pub fn invert(&self) -> Self {
         Self(!self.0)
     }
@@ -39,7 +40,7 @@ impl ShroomVersion {
             .iter()
             .fold(0, |mut acc, &c| {
                 acc <<= 5;
-                acc + (c as u32) + 1
+                acc + u32::from(c) + 1
             })
     }
 
@@ -49,7 +50,7 @@ impl ShroomVersion {
         self.wz_hash()
             .to_be_bytes()
             .iter()
-            .fold(0xFF, |acc, &b| acc ^ b as u16)
+            .fold(0xFF, |acc, &b| acc ^ u16::from(b))
     }
 }
 

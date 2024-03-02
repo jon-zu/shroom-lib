@@ -1,24 +1,25 @@
 use crate::{error::Error, PacketResult};
 
-/// OpCode trait which allows conversion from and to the opcode from an `u16`
+/// `OpCode` trait which allows conversion from and to the opcode from an `u16`
 pub trait ShroomOpCode:
     TryFrom<u16> + Into<u16> + Copy + Clone + Send + Sync + PartialEq + Eq
 {
-    /// Parses the opcode from an u16
+    /// Parses the opcode from an `u16`
     fn get_opcode(v: u16) -> PacketResult<Self> {
         Self::try_from(v).map_err(|_| Error::InvalidOpCode(v))
     }
 }
 
-/// Blanket implementation for u16
+/// Blanket implementation for `u16`
 impl ShroomOpCode for u16 {}
 
-/// Adds an opcode to the type by implementing this trait
+/// Adds an `OpCode` to a type, which can be used in conjunction with
+/// `EncodePacket` and `DecodePacket` to make the type a `Message`
 pub trait HasOpCode {
-    /// OpCode type
+    /// `OpCode` type
     type OpCode: ShroomOpCode;
 
-    /// OpCode value
+    /// `OpCode` value
     const OPCODE: Self::OpCode;
 }
 

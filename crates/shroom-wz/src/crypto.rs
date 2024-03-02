@@ -3,8 +3,8 @@ use std::{char::DecodeUtf16Error, io, num::Wrapping};
 use aes::cipher::{inout::InOutBuf, KeyIvInit};
 use shroom_crypto::{
     wz::{
-        wz_data_cipher::{WzDataCipher, WzDataCryptStream},
-        wz_offset_cipher::WzOffsetCipher,
+        data_cipher::{WzDataCipher, WzDataCryptStream},
+        offset_cipher::WzOffsetCipher,
     },
     ShroomVersion,
 };
@@ -126,7 +126,7 @@ fn append_chunk_str16<const N: usize>(
 ) -> Result<(), DecodeUtf16Error> {
     s.reserve(N);
 
-    for c in char::decode_utf16(v.iter().cloned()) {
+    for c in char::decode_utf16(v.iter().copied()) {
         s.push(c?);
     }
 
@@ -136,7 +136,7 @@ fn append_chunk_str16<const N: usize>(
 fn append_slice_str16(s: &mut String, v: &[u16]) -> Result<(), DecodeUtf16Error> {
     s.reserve(v.len());
 
-    for c in char::decode_utf16(v.iter().cloned()) {
+    for c in char::decode_utf16(v.iter().copied()) {
         s.push(c?);
     }
 
@@ -153,9 +153,8 @@ fn append_chunk_str8<const N: usize>(s: &mut String, src: &[u8; N]) -> anyhow::R
     Ok(())
 }
 
-fn append_slice_str8(s: &mut String, src: &[u8]) -> anyhow::Result<()> {
+fn append_slice_str8(s: &mut String, src: &[u8]) {
     s.extend(src.iter().copied().map(char_decode_latin1));
-    Ok(())
 }
 
 impl WzCrypto {
@@ -181,11 +180,11 @@ impl WzCrypto {
             return;
         }
 
-        self.cipher.crypt_inout(buf)
+        self.cipher.crypt_inout(buf);
     }
 
     pub fn crypt(&self, buf: &mut [u8]) {
-        self.crypt_inout(buf.into())
+        self.crypt_inout(buf.into());
     }
 
     pub fn decode_str8(&self, buf: &mut [u8]) {
@@ -223,7 +222,7 @@ impl WzCrypto {
             let chunk = &mut chunk[..tail];
             crypt.crypt(bytemuck::cast_slice_mut(chunk));
 
-            append_slice_str8(&mut res, chunk)?;
+            append_slice_str8(&mut res, chunk);
         }
 
         Ok(res)
@@ -333,7 +332,7 @@ impl WzCrypto {
     }
 
     pub fn offset_link(&self, off: u32) -> u64 {
-        self.data_offset as u64 + off as u64
+        u64::from(self.data_offset + off)
     }
 }
 

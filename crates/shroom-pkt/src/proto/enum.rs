@@ -1,4 +1,4 @@
-/// Mark an enum which implements TryFromPrimitive and `Into<Primitive>`
+/// Mark an enum which implements `TryFromPrimitive` and `Into<Primitive>`
 /// as packet encode/decode-able
 #[macro_export]
 macro_rules! mark_shroom_enum {
@@ -26,7 +26,7 @@ macro_rules! mark_shroom_enum {
 }
 
 /// Define an enum with just numbers like:
-/// shroom_enum_code!(EnumCode, u8, A = 1, B = 2, C = 3);
+/// `shroom_enum_code!(EnumCode, u8, A = 1, B = 2, C = 3);`
 #[macro_export]
 macro_rules! shroom_enum_code {
     // Without default
@@ -54,13 +54,13 @@ macro_rules! shroom_enum_code {
     };
 }
 
-/// Create a packet enum type with variants likes:
-///             #[derive(Debug, PartialEq)]
+/// Create a packet enum type with variants like:
+///             ```#[derive(Debug, PartialEq)]
 ///             pub enum TestChoice: u16 {
 ///                 Zero(()) = 0,
 ///                 One(()) = 1,
 ///                 Two(u32) = 2,
-///             }
+///             }```
 #[macro_export]
 macro_rules! shroom_pkt_enum {
     // More or less copied from the bit flags crate

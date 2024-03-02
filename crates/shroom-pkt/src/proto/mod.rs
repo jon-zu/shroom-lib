@@ -162,9 +162,9 @@ pub trait EncodePacket: Sized {
     /// Encodes this packet
     fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()>;
 
-    /// Encodes n packets
-    fn encode_n<B: BufMut>(items: &[Self], pw: &mut PacketWriter<B>) -> PacketResult<()> {
-        for item in items.iter() {
+    /// Encodes all items onto the writer
+    fn encode_all<B: BufMut>(items: &[Self], pw: &mut PacketWriter<B>) -> PacketResult<()> {
+        for item in items {
             item.encode(pw)?;
         }
 
@@ -258,6 +258,67 @@ macro_rules! impl_for_tuples {
 }
 
 impl_for_tuples!(impl_tuple_encode_decode);
+
+#[derive(Debug)]
+pub struct DebugPkt<T>(pub T);
+
+impl<T: EncodePacket + std::fmt::Debug> EncodePacket for DebugPkt<T> {
+    const SIZE_HINT: SizeHint = T::SIZE_HINT;
+
+    fn encode_len(&self) -> usize {
+        self.0.encode_len()
+    }
+
+    fn encode<B: bytes::BufMut>(
+        &self,
+        pw: &mut PacketWriter<B>,
+    ) -> PacketResult<()> {
+        dbg!(&self.0);
+        self.0.encode(pw)
+    }
+}
+
+impl<'de, T: DecodePacket<'de> + std::fmt::Debug> DecodePacket<'de> for DebugPkt<T> {
+    fn decode(pr: &mut PacketReader<'de>) -> PacketResult<Self> {
+        let pkt = T::decode(pr)?;
+        dbg!(&pkt);
+        Ok(DebugPkt(pkt))
+    }
+}
+
+#[derive(Debug)]
+pub struct OptionTail<T>(pub Option<T>);
+
+impl<T> From<Option<T>> for OptionTail<T> {
+    fn from(opt: Option<T>) -> Self {
+        OptionTail(opt)
+    }
+}
+
+impl<T: EncodePacket> EncodePacket for OptionTail<T> {
+    const SIZE_HINT: SizeHint = SizeHint::NONE;
+
+    fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
+        if let Some(val) = self.0.as_ref() {
+            val.encode(pw)?;
+        }
+        Ok(())
+    }
+
+    fn encode_len(&self) -> usize {
+        self.0.as_ref().map(|v| v.encode_len()).unwrap_or(0)
+    }
+}
+
+impl<'de, T: DecodePacket<'de>> DecodePacket<'de> for OptionTail<T> {
+    fn decode(pr: &mut PacketReader<'de>) -> PacketResult<Self> {
+        if pr.remaining() > 0 {
+            Ok(OptionTail(Some(T::decode(pr)?)))
+        } else {
+            Ok(OptionTail(None))
+        }    
+    }
+}
 
 #[cfg(test)]
 mod tests {

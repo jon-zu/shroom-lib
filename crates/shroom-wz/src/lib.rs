@@ -1,3 +1,13 @@
+#![allow(
+    clippy::must_use_candidate,
+    clippy::cast_possible_truncation,
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc,
+    clippy::cast_sign_loss,
+    clippy::cast_possible_wrap
+)]
+
 pub mod canvas;
 pub mod crypto;
 pub mod ctx;
@@ -63,10 +73,14 @@ pub struct WzConfig {
 }
 
 impl WzConfig {
+    /// Creates a config with the given region and version
+    #[must_use]
     pub const fn new(region: WzRegion, version: ShroomVersion) -> Self {
         Self { region, version }
     }
 
+    /// Creates a config for the global region
+    #[must_use]
     pub const fn global(version: ShroomVersion) -> Self {
         Self {
             region: WzRegion::Global,

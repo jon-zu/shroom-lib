@@ -68,36 +68,6 @@ where
     }
 }
 
-/// An optional tail, only read If there's enough data at the end available
-pub struct OptionTail<T>(pub Option<T>);
-
-impl<T> EncodePacket for OptionTail<T>
-where
-    T: EncodePacket,
-{
-    const SIZE_HINT: SizeHint = SizeHint::NONE;
-
-    fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
-        if let Some(val) = self.0.as_ref() {
-            val.encode(pw)?;
-        }
-        Ok(())
-    }
-
-    fn encode_len(&self) -> usize {
-        self.0.as_ref().map(|v| v.encode_len()).unwrap_or(0)
-    }
-}
-
-impl<'de, T> DecodePacket<'de> for OptionTail<T>
-where
-    T: DecodePacket<'de>,
-{
-    fn decode(pr: &mut PacketReader<'de>) -> PacketResult<Self> {
-        let mut sub_reader = pr.sub_reader();
-        Ok(Self(T::decode(&mut sub_reader).ok()))
-    }
-}
 macro_rules! impl_dec_enc {
     ($ty:ty, $dec:path, $enc:path) => {
         impl EncodePacket for $ty {
@@ -146,30 +116,23 @@ impl<const N: usize, T: EncodePacket> EncodePacket for [T; N] {
     const SIZE_HINT: SizeHint = T::SIZE_HINT.mul_n(N);
 
     fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
-        for v in self.iter() {
-            v.encode(pw)?;
-        }
-        Ok(())
+        T::encode_all(self.as_slice(), pw)
     }
 
     fn encode_len(&self) -> usize {
-        self.iter().map(|v| v.encode_len()).sum()
+        self.iter().map(EncodePacket::encode_len).sum()
     }
 }
 
-impl<D: EncodePacket> EncodePacket for Vec<D> {
-    fn encode<T: BufMut>(&self, pw: &mut PacketWriter<T>) -> PacketResult<()> {
-        for v in self.iter() {
-            v.encode(pw)?;
-        }
-
-        Ok(())
+impl<T: EncodePacket> EncodePacket for Vec<T> {
+    fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
+        T::encode_all(self, pw)
     }
 
     const SIZE_HINT: SizeHint = SizeHint::NONE;
 
     fn encode_len(&self) -> usize {
-        self.iter().map(|v| v.encode_len()).sum()
+        self.iter().map(EncodePacket::encode_len).sum()
     }
 }
 
@@ -185,7 +148,7 @@ impl<D: EncodePacket> EncodePacket for Option<D> {
     }
 
     fn encode_len(&self) -> usize {
-        self.as_ref().map(|v| v.encode_len()).unwrap_or(0)
+        self.as_ref().map_or(0, EncodePacket::encode_len)
     }
 }
 

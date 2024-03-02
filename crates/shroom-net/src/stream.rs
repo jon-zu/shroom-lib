@@ -155,7 +155,7 @@ mod tests {
     use turmoil::net::{TcpListener, TcpStream};
 
     use crate::codec::{
-        legacy::{handshake_gen::BasicHandshakeGenerator, LegacyCodec},
+        legacy::{handshake_gen::BasicHandshakeGenerator, LegacyCodecNoShanda},
         ShroomCodec,
     };
 
@@ -169,7 +169,7 @@ mod tests {
     fn echo() -> anyhow::Result<()> {
         const ECHO_DATA: [&'static [u8]; 5] = [&[], &[0xFF; 4096], &[], &[1, 2], &[0x0; 1024]];
 
-        let legacy = Arc::new(LegacyCodec::<turmoil::net::TcpStream>::new(
+        let legacy = Arc::new(LegacyCodecNoShanda::<turmoil::net::TcpStream>::new(
             SharedCryptoContext::default(),
             BasicHandshakeGenerator::v83(),
         ));
@@ -179,7 +179,7 @@ mod tests {
         sim.host("server", || async move {
             let listener = bind().await?;
 
-            let legacy = LegacyCodec::<turmoil::net::TcpStream>::new(
+            let legacy = LegacyCodecNoShanda::<turmoil::net::TcpStream>::new(
                 SharedCryptoContext::default(),
                 BasicHandshakeGenerator::v83(),
             );

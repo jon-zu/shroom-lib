@@ -1,6 +1,5 @@
 use std::{
     io::{Cursor, Seek},
-    ops::Deref,
     time::Duration,
 };
 
@@ -102,7 +101,7 @@ impl BinRead for WzSoundHeader {
         let media_hdr: WzMediaHeader = reader.read_type(endian)?;
 
         // Right now only stream is supported
-        if media_hdr.major_type.deref() != &MEDIA_TYPE_STREAM {
+        if media_hdr.major_type != MEDIA_TYPE_STREAM {
             return Err(custom_binrw_error(
                 reader,
                 anyhow::format_err!("Invalid sound major type: {:?}", media_hdr.major_type),

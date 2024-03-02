@@ -22,15 +22,6 @@ pub mod handshake_gen;
 
 pub const MAX_HANDSHAKE_LEN: usize = 24;
 pub const MAX_PACKET_LEN: usize = i16::MAX as usize;
-
-/// Cipher used for the legacy protocol
-#[cfg(feature = "shanda")]
-pub type LegacyCipher = NetCipher<true>;
-
-/// Cipher used for the legacy protocol
-#[cfg(not(feature = "shanda"))]
-pub type LegacyCipher = NetCipher<false>;
-
 // Locale code for handshake, T means test server
 shroom_enum_code!(
     LocaleCode,
@@ -48,13 +39,16 @@ shroom_enum_code!(
 );
 
 /// Legacy codec
-pub struct LegacyCodec<T = tokio::net::TcpStream> {
+pub struct LegacyCodec<const SHANDA: bool, T = tokio::net::TcpStream> {
     crypto_ctx: SharedCryptoContext,
     handshake_gen: BasicHandshakeGenerator,
     _marker: std::marker::PhantomData<T>,
 }
 
-impl<T> Clone for LegacyCodec<T> {
+pub type LegacyCodecShanda<T> = LegacyCodec<true, T>;
+pub type LegacyCodecNoShanda<T> = LegacyCodec<false, T>;
+
+impl<const S: bool, T> Clone for LegacyCodec<S, T> {
     fn clone(&self) -> Self {
         Self {
             crypto_ctx: self.crypto_ctx.clone(),
@@ -64,7 +58,7 @@ impl<T> Clone for LegacyCodec<T> {
     }
 }
 
-impl<T> Default for LegacyCodec<T> {
+impl<const S: bool, T> Default for LegacyCodec<S, T> {
     fn default() -> Self {
         Self::new(
             SharedCryptoContext::default(),
@@ -73,7 +67,7 @@ impl<T> Default for LegacyCodec<T> {
     }
 }
 
-impl<T> LegacyCodec<T> {
+impl<const S: bool, T> LegacyCodec<S, T> {
     /// Creates a new legacy codedc from the crypto context and handshake generator
     pub fn new(crypto_ctx: SharedCryptoContext, handshake_gen: BasicHandshakeGenerator) -> Self {
         Self {
@@ -84,15 +78,11 @@ impl<T> LegacyCodec<T> {
     }
 
     /// Creates a new client codec from the given handshake
-    fn create_client_codec(&self, handshake: &Handshake) -> (LegacyEncoder, LegacyDecoder) {
+    fn create_client_codec(&self, handshake: &Handshake) -> (LegacyEncoder<S>, LegacyDecoder<S>) {
         let v = handshake.version;
         (
-            LegacyEncoder::new(LegacyCipher::new(
-                self.crypto_ctx.clone(),
-                handshake.iv_enc,
-                v,
-            )),
-            LegacyDecoder::new(LegacyCipher::new(
+            LegacyEncoder::new(NetCipher::new(self.crypto_ctx.clone(), handshake.iv_enc, v)),
+            LegacyDecoder::new(NetCipher::new(
                 self.crypto_ctx.clone(),
                 handshake.iv_dec,
                 v.invert(),
@@ -101,19 +91,15 @@ impl<T> LegacyCodec<T> {
     }
 
     /// Creates a new server codec from the given handshake
-    fn create_server_codec(&self, handshake: &Handshake) -> (LegacyEncoder, LegacyDecoder) {
+    fn create_server_codec(&self, handshake: &Handshake) -> (LegacyEncoder<S>, LegacyDecoder<S>) {
         let v = handshake.version;
         (
-            LegacyEncoder::new(LegacyCipher::new(
+            LegacyEncoder::new(NetCipher::new(
                 self.crypto_ctx.clone(),
                 handshake.iv_dec,
                 v.invert(),
             )),
-            LegacyDecoder::new(LegacyCipher::new(
-                self.crypto_ctx.clone(),
-                handshake.iv_enc,
-                v,
-            )),
+            LegacyDecoder::new(NetCipher::new(self.crypto_ctx.clone(), handshake.iv_enc, v)),
         )
     }
 
@@ -137,7 +123,7 @@ impl<T> LegacyCodec<T> {
     }
 }
 
-impl LegacyCodec<TcpStream> {
+impl<const S: bool> LegacyCodec<S, TcpStream> {
     /// Connects to a server with the given address
     pub async fn connect(&self, addr: impl ToSocketAddrs) -> NetResult<ShroomStream<Self>> {
         let stream = TcpStream::connect(addr).await?;
@@ -150,9 +136,9 @@ impl LegacyCodec<TcpStream> {
     }
 }
 
-impl<T: ShroomTransport + Sync> ShroomCodec for LegacyCodec<T> {
-    type Encoder = LegacyEncoder;
-    type Decoder = LegacyDecoder;
+impl<const S: bool, T: ShroomTransport + Sync> ShroomCodec for LegacyCodec<S, T> {
+    type Encoder = LegacyEncoder<S>;
+    type Decoder = LegacyDecoder<S>;
     type Transport = T;
 
     fn create_client(

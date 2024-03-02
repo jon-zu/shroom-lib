@@ -1,6 +1,6 @@
 use std::io::{self, BufRead, Read, Write};
 
-use shroom_crypto::wz::wz_data_cipher::WzDataCryptStream;
+use shroom_crypto::wz::data_cipher::WzDataCryptStream;
 
 use crate::crypto::WzCrypto;
 

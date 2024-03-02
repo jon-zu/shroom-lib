@@ -1,6 +1,7 @@
 use crate::{DecodePacket, DecodePacketOwned, EncodePacket, PacketReader, PacketWriter};
 
 /// Helper function to test If encoding matches decoding
+#[allow(clippy::needless_pass_by_value)]
 pub fn test_enc_dec<T>(val: T)
 where
     T: EncodePacket + DecodePacketOwned + PartialEq + std::fmt::Debug,
@@ -23,6 +24,7 @@ where
 }
 
 // Helper to test with a lifetime
+#[allow(clippy::needless_pass_by_value)]
 pub fn enc_dec_lf<'de, T>(data: T, buf: &'de mut Vec<u8>)
 where
     T: EncodePacket + DecodePacket<'de> + PartialEq + std::fmt::Debug + 'de,

@@ -39,7 +39,7 @@ impl WzOffsetCipher {
 #[cfg(test)]
 mod tests {
     use crate::{
-        default_keys::wz::DEFAULT_WZ_OFFSET_MAGIC, wz::wz_offset_cipher::WzOffsetCipher,
+        default_keys::wz::DEFAULT_WZ_OFFSET_MAGIC, wz::offset_cipher::WzOffsetCipher,
         ShroomVersion,
     };
 

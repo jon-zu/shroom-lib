@@ -18,9 +18,9 @@ pub trait ShroomListLen: EncodePacket + DecodePacketOwned {
 
 /// List index type
 pub trait ShroomListIndex: ShroomListLen + PartialEq {
-    /// Terminator for ShroomIndexList
+    /// Terminator for `ShroomIndexList`
     const TERMINATOR: Self;
-    /// Terminator for ShroomIndexListZ
+    /// Terminator for `ShroomIndexListZ`
     const ZERO_TERMINATOR: Self;
 }
 
@@ -116,7 +116,8 @@ where
     const SIZE_HINT: SizeHint = SizeHint::NONE;
 
     fn encode_len(&self) -> usize {
-        I::SIZE_HINT.0.expect("Index size") + self.iter().map(|v| v.encode_len()).sum::<usize>()
+        I::SIZE_HINT.0.expect("Index size") * self.len()
+            + self.iter().map(EncodePacket::encode_len).sum::<usize>()
     }
 }
 
@@ -196,7 +197,7 @@ where
     fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
         // Encode the length followed by all items
         L::from_len(self.len()).encode(pw)?;
-        T::encode_n(self, pw)?;
+        T::encode_all(self, pw)?;
 
         Ok(())
     }
@@ -205,17 +206,21 @@ where
 
     fn encode_len(&self) -> usize {
         L::SIZE_HINT.0.expect("Index size")
-            + self.items.iter().map(|v| v.encode_len()).sum::<usize>()
+            + self
+                .items
+                .iter()
+                .map(EncodePacket::encode_len)
+                .sum::<usize>()
     }
 }
 
-/// ShroomList with `u8` as length
+/// `ShroomList `with `u8` as length
 pub type ShroomList8<T> = ShroomList<u8, T>;
-/// ShroomList with `u16` as length
+/// `ShroomList `with `u16` as length
 pub type ShroomList16<T> = ShroomList<u16, T>;
-/// ShroomList with `u32` as length
+/// `ShroomList `with `u32` as length
 pub type ShroomList32<T> = ShroomList<u32, T>;
-/// ShroomList with `u64` as length
+/// `ShroomList `with `u64` as length
 pub type ShroomList64<T> = ShroomList<u64, T>;
 
 /// Index based list with `u8` as index

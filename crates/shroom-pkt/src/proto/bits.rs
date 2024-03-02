@@ -39,8 +39,8 @@ pub fn pack_struct<T: PackedStruct>(v: &T) -> T::ByteArray {
     v.pack().expect("pack")
 }
 
-pub fn unpack_struct<T: PackedStruct>(v: T::ByteArray) -> T {
-    T::unpack(&v).expect("unpack")
+pub fn unpack_struct<T: PackedStruct>(v: &T::ByteArray) -> T {
+    T::unpack(v).expect("unpack")
 }
 
 /// Mark the given `PacketStruct` by implementing a Wrapper
@@ -61,7 +61,7 @@ macro_rules! mark_shroom_packed_struct {
 
         impl<'de> $crate::DecodePacket<'de> for $packed_strct_ty {
             fn decode(pr: &mut $crate::PacketReader<'de>) -> $crate::PacketResult<Self> {
-                Ok($crate::proto::bits::unpack_struct(pr.read_array()?))
+                Ok($crate::proto::bits::unpack_struct(&pr.read_array()?))
             }
         }
     };

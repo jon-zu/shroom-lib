@@ -69,6 +69,7 @@ impl RoundKey {
     }
 
     /// Update the round key
+    #[must_use]
     pub fn update(self, ig: &IgContext) -> RoundKey {
         ig.hash(&self.0).into()
     }

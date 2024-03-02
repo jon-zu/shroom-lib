@@ -59,11 +59,9 @@ impl WzPixelFormat {
     /// Pixel size in bytes
     pub fn pixel_size(&self) -> usize {
         match self {
-            WzPixelFormat::BGRA4 => 2,
-            WzPixelFormat::BGRA8 => 4,
-            WzPixelFormat::BGR565 => 2,
-            WzPixelFormat::DXT3 => 1,
-            WzPixelFormat::DXT5 => 1,
+            Self::DXT3 | Self::DXT5 => 1,
+            Self::BGRA4 | Self::BGR565 => 2,
+            Self::BGRA8 => 4,
         }
     }
 }

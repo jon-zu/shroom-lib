@@ -1,13 +1,13 @@
 use std::ops::Deref;
 
 use bytes::{BufMut, BytesMut};
-use shroom_crypto::{PacketHeader, PACKET_HEADER_LEN};
+use shroom_crypto::{net::net_cipher::NetCipher, PacketHeader, PACKET_HEADER_LEN};
 use shroom_pkt::Packet;
 use tokio_util::codec::{Decoder, Encoder};
 
 use crate::{NetError, NetResult};
 
-use super::{LegacyCipher, MAX_PACKET_LEN};
+use super::MAX_PACKET_LEN;
 
 /// Check the packet length
 fn check_packet_len(len: usize) -> NetResult<usize> {
@@ -18,13 +18,13 @@ fn check_packet_len(len: usize) -> NetResult<usize> {
     Ok(len)
 }
 
-pub struct LegacyDecoder {
-    crypto: LegacyCipher,
+pub struct LegacyDecoder<const S: bool> {
+    crypto: NetCipher<S>,
     len: Option<usize>,
 }
 
-impl LegacyDecoder {
-    pub fn new(crypto: LegacyCipher) -> Self {
+impl<const S: bool> LegacyDecoder<S> {
+    pub fn new(crypto: NetCipher<S>) -> Self {
         Self { crypto, len: None }
     }
 
@@ -52,7 +52,7 @@ impl LegacyDecoder {
     }
 }
 
-impl Decoder for LegacyDecoder {
+impl<const S: bool> Decoder for LegacyDecoder<S> {
     type Item = Packet;
     type Error = NetError;
 
@@ -76,10 +76,10 @@ impl Decoder for LegacyDecoder {
     }
 }
 
-pub struct LegacyEncoder(LegacyCipher);
+pub struct LegacyEncoder<const S: bool>(NetCipher<S>);
 
-impl LegacyEncoder {
-    pub fn new(crypto: LegacyCipher) -> Self {
+impl<const S: bool> LegacyEncoder<S> {
+    pub fn new(crypto: NetCipher<S>) -> Self {
         Self(crypto)
     }
 }
@@ -110,7 +110,7 @@ where
     }
 }
 
-impl<'a> Encoder<&'a [u8]> for LegacyEncoder {
+impl<'a, const S: bool> Encoder<&'a [u8]> for LegacyEncoder<S> {
     type Error = NetError;
 
     fn encode(&mut self, item: &'a [u8], dst: &mut bytes::BytesMut) -> Result<(), Self::Error> {

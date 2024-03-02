@@ -13,7 +13,7 @@ impl ShandaCipher {
         b = b.wrapping_add(len);
         let next_state = b;
         b ^= state;
-        b = b.rotate_right(len as u32);
+        b = b.rotate_right(u32::from(len));
         b = !b;
         b = b.wrapping_add(0x48);
         (b, next_state ^ state)
@@ -22,7 +22,7 @@ impl ShandaCipher {
     fn round_even_decrypt(mut b: u8, state: u8, len: u8) -> (u8, u8) {
         b = b.wrapping_sub(0x48);
         b = !b;
-        b = b.rotate_left(len as u32);
+        b = b.rotate_left(u32::from(len));
         let next_state = b;
         b ^= state;
         b = b.wrapping_sub(len);

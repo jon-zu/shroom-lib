@@ -36,13 +36,13 @@ impl<R> WzImgReader<R>
 where
     R: WzIO,
 {
-    /// Create a new image reader from an existing WzReader
+    /// Create a new image reader from an existing `WzReader``
     /// and the given crypto context
     pub fn new(r: R, crypto: Arc<WzCrypto>, chunked_canvas_encoding: bool) -> Self {
         Self {
             r,
             crypto,
-            str_table: Default::default(),
+            str_table: RefCell::default(),
             chunked_canvas: Some(chunked_canvas_encoding),
         }
     }
@@ -106,10 +106,10 @@ where
 
         // Create a new sub reader
         let mut r = (&mut self.r).take(len);
-        if !chunked {
-            r.decompress_flate_size_to(w, canvas_size)?;
-        } else {
+        if chunked {
             ChunkedReader::new(r, &self.crypto).decompress_flate_size_to(w, canvas_size)?;
+        } else {
+            r.decompress_flate_size_to(w, canvas_size)?;
         }
 
         Ok(())
@@ -172,7 +172,7 @@ where
 {
     pub fn open(mut rdr: R, cfg: WzConfig) -> anyhow::Result<Self> {
         let hdr = WzHeader::read_le(&mut rdr).context("WzHeader")?;
-        rdr.seek(SeekFrom::Start(hdr.data_offset as u64))?;
+        rdr.seek(SeekFrom::Start(u64::from(hdr.data_offset)))?;
 
         let encrypted_version = u16::read_le(&mut rdr)?;
         let ver = cfg.version;
@@ -183,7 +183,7 @@ where
             );
         }
 
-        Ok(Self::new(rdr, cfg, hdr.data_offset as u64))
+        Ok(Self::new(rdr, cfg, u64::from(hdr.data_offset)))
     }
 
     pub fn open_img(rdr: R, cfg: WzConfig) -> Self {
@@ -230,7 +230,7 @@ where
 
     /// Read a dir node at the given offset
     pub fn read_dir_node_at(&mut self, offset: WzOffset) -> anyhow::Result<WzDir> {
-        self.set_pos(offset.0 as u64)?;
+        self.set_pos(u64::from(offset.0))?;
         Ok(WzDir::read_le_args(
             &mut self.inner,
             WzContext::new(&self.crypto),
@@ -266,7 +266,7 @@ where
     pub fn traverse_images(&mut self) -> WzImgTraverser<'_, R> {
         let mut q = VecDeque::new();
         q.push_back((
-            Arc::new("".to_string()),
+            Arc::new(String::new()),
             WzDirEntry::Dir(WzDirHeader::root("root", 1, self.root_offset())),
         ));
         WzImgTraverser { r: self, q }
@@ -339,7 +339,7 @@ where
                     let name = format!("{}/{}", root_name, img.name.as_str());
                     return Some(Ok((name, img)));
                 }
-                _ => {
+                WzDirEntry::Null(_) => {
                     continue;
                 }
             }

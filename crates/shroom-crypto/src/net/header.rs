@@ -38,6 +38,9 @@ impl HiLo32 {
     }
 }
 
+/// Decodes and verifies a header from the given bytes
+/// 
+/// # Errors If the header is invalid
 pub fn decode_header(
     hdr: PacketHeader,
     key: RoundKey,

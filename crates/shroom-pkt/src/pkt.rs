@@ -16,7 +16,7 @@ impl Packet {
     }
 
     pub fn into_reader(&self) -> PacketReader<'_> {
-        PacketReader::new(self.deref())
+        PacketReader::new(self)
     }
 }
 
@@ -30,7 +30,7 @@ impl Deref for Packet {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        &self.0
     }
 }
 
@@ -79,7 +79,7 @@ impl Message {
 
 impl AsRef<[u8]> for Message {
     fn as_ref(&self) -> &[u8] {
-        self.0.deref()
+        &self.0
     }
 }
 
@@ -87,7 +87,7 @@ impl Deref for Message {
     type Target = [u8];
 
     fn deref(&self) -> &Self::Target {
-        self.0.deref()
+        &self.0
     }
 }
 

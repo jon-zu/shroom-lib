@@ -21,7 +21,7 @@ pub const DEFAULT_IG_CONTEXT: IgContext = IgContext {
 };
 
 impl IgContext {
-    /// Creates a new IgContext
+    /// Creates a new `IgContext`
     pub const fn new(shuffle_key: ShuffleKey, seed: u32) -> Self {
         Self { shuffle_key, seed }
     }
@@ -103,7 +103,7 @@ impl<'ctx> IgHasher<'ctx> {
     pub fn update(&mut self, data: &[u8]) {
         self.state = data
             .iter()
-            .fold(self.state, |key, b| self.ctx.update_key(key, *b))
+            .fold(self.state, |key, b| self.ctx.update_key(key, *b));
     }
 
     pub fn finalize(&self) -> u32 {
@@ -113,15 +113,15 @@ impl<'ctx> IgHasher<'ctx> {
 
 impl<'ctx> Hasher for IgHasher<'ctx> {
     fn write(&mut self, bytes: &[u8]) {
-        self.update(bytes)
+        self.update(bytes);
     }
 
     fn finish(&self) -> u64 {
-        self.finalize() as u64
+        u64::from(self.finalize())
     }
 }
 
-/// IgCipher
+/// `IgCipher`
 pub struct IgCipher {
     ctx: IgContext,
     state: u32,
@@ -181,7 +181,7 @@ impl BlockEncryptMut for IgCipher {
             }
         }
 
-        f.call(&mut BlockEnc(self))
+        f.call(&mut BlockEnc(self));
     }
 }
 
@@ -205,7 +205,7 @@ impl BlockDecryptMut for IgCipher {
             }
         }
 
-        f.call(&mut BlockDec(self))
+        f.call(&mut BlockDec(self));
     }
 }
 

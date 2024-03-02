@@ -100,7 +100,7 @@ impl ShroomPacketCipher {
 
     /// Updates the current round key
     pub fn update_round_key_ig(&mut self, ig_ctx: &IgContext) {
-        self.update_round_key(|rk| rk.update(ig_ctx))
+        self.update_round_key(|rk| rk.update(ig_ctx));
     }
 
     /// Gets a copy of the current round key

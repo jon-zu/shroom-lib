@@ -80,17 +80,19 @@ impl<'a> PacketReader<'a> {
     }
 
     /// Create a sub reader based on this slice
+    #[must_use]
     pub fn sub_reader(&self) -> Self {
         Self::new(self.remaining_slice())
     }
 
     /// Commit a sub reader
     /// as in advancing the position of this reader
+    #[allow(clippy::needless_pass_by_value)]
     pub fn commit_sub_reader(&mut self, sub_reader: Self) -> PacketResult<()> {
         self.advance(sub_reader.inner.position() as usize)
     }
 
-    /// Read the given OpCode `T`
+    /// Read the given `OpCode` `T`
     pub fn read_opcode<T: ShroomOpCode>(&mut self) -> PacketResult<T> {
         let v = self.read_u16()?;
         T::get_opcode(v)
@@ -146,7 +148,7 @@ impl<'a> PacketReader<'a> {
     }
 
     pub fn read_i128(&mut self) -> PacketResult<i128> {
-        Ok(self.read_u128()? as i128)
+        Ok(i128::from_le_bytes(self.read_u128()?.to_le_bytes()))
     }
 
     pub fn read_f32(&mut self) -> PacketResult<f32> {

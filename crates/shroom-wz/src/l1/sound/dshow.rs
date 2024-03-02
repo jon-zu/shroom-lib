@@ -13,6 +13,12 @@ pub struct Guid(
     pub uuid::Uuid,
 );
 
+impl PartialEq<uuid::Uuid> for Guid {
+    fn eq(&self, other: &uuid::Uuid) -> bool {
+        self.0 == *other
+    }
+}
+
 impl From<uuid::Uuid> for Guid {
     fn from(uuid: uuid::Uuid) -> Self {
         Self(uuid)
@@ -119,7 +125,7 @@ impl BinRead for WaveHeader {
     fn read_options<R: std::io::Read + std::io::Seek>(
         reader: &mut R,
         endian: binrw::Endian,
-        _: Self::Args<'_>,
+        (): Self::Args<'_>,
     ) -> binrw::BinResult<Self> {
         let fmt: u16 = reader.read_le()?;
         reader.rewind()?;
@@ -144,7 +150,7 @@ impl BinWrite for WaveHeader {
         &self,
         writer: &mut W,
         endian: binrw::Endian,
-        _: Self::Args<'_>,
+        (): Self::Args<'_>,
     ) -> binrw::BinResult<()> {
         match self {
             WaveHeader::Pcm(h) => h.write_options(writer, endian, ())?,

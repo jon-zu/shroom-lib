@@ -34,11 +34,13 @@ pub struct ClientTimeOffset(pub DurationMs<i32>);
 
 impl From<(bool, u32)> for ClientTimeOffset {
     fn from(v: (bool, u32)) -> Self {
-        if v.0 {
-            Self(DurationMs(-(v.1 as i32)))
+        // TODO figure out how to deal with the i32/u32
+        #[allow(clippy::cast_possible_wrap)]
+        Self(DurationMs(if v.0 {
+            -(v.1 as i32)
         } else {
-            Self(DurationMs(v.1 as i32))
-        }
+            v.1 as i32
+        }))
     }
 }
 
@@ -70,8 +72,8 @@ impl TryFrom<DateTime<Utc>> for ShroomTime {
 }
 
 /// Valid range for the time
-pub const SHROOM_TIME_MIN: ShroomTime = ShroomTime::new(94354848000000000); // 1/1/1900
-pub const SHROOM_TIME_MAX: ShroomTime = ShroomTime::new(150842304000000000); // 1/1/2079
+pub const SHROOM_TIME_MIN: ShroomTime = ShroomTime::new(94_354_848_000_000_000); // 1/1/1900
+pub const SHROOM_TIME_MAX: ShroomTime = ShroomTime::new(150_842_304_000_000_000); // 1/1/2079
 
 impl ShroomTime {
     pub const fn new(v: u64) -> Self {
@@ -216,7 +218,7 @@ where
     }
 }
 
-/// Convert a DurationMS into a `Duration`
+/// Convert a `DurationMS` into a `Duration`
 impl<T> From<DurationMs<T>> for Duration
 where
     T: Into<u64>,

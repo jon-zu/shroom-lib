@@ -27,7 +27,7 @@ pub fn custom_binrw_error<
 
 /// Calculate the checksum with a seed and a single byte
 pub fn wz_checksum_step(seed: i32, b: u8) -> i32 {
-    seed.wrapping_add(b as i32)
+    seed.wrapping_add(i32::from(b))
 }
 
 /// Calculates the checksum of the data with the given seed
@@ -186,7 +186,7 @@ where
     }
 
     fn consume(&mut self, amt: usize) {
-        self.inner.consume(amt)
+        self.inner.consume(amt);
     }
 }
 

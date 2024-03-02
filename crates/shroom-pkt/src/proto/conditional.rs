@@ -28,13 +28,13 @@ impl<T> Default for CondOption<T> {
 
 impl<T: EncodePacket> EncodePacket for CondOption<T> {
     fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
-        self.0.as_ref().map(|p| p.encode(pw)).unwrap_or(Ok(()))
+        self.0.as_ref().map_or(Ok(()), |p| p.encode(pw))
     }
 
     const SIZE_HINT: SizeHint = SizeHint::NONE;
 
     fn encode_len(&self) -> usize {
-        self.0.as_ref().map(|v| v.encode_len()).unwrap_or(0)
+        self.0.as_ref().map_or(0, EncodePacket::encode_len)
     }
 }
 

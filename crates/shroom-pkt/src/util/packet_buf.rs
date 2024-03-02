@@ -39,7 +39,7 @@ impl PacketBuf {
     pub fn packets(&self) -> impl Iterator<Item = &[u8]> + '_ {
         self.ix
             .iter()
-            .cloned()
+            .copied()
             .chain(iter::once(self.buf.len()))
             .tuple_windows()
             .map(|(l, r)| &self.buf[l..r])

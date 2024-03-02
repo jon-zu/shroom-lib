@@ -12,6 +12,7 @@ pub trait ShroomOptionDiscriminant: EncodePacket + DecodePacketOwned {
     const SOME_VALUE: Self;
     fn has_value(&self) -> bool;
 
+    #[must_use]
     fn reverse(&self) -> Self {
         if self.has_value() {
             Self::NONE_VALUE

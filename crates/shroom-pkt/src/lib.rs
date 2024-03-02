@@ -1,4 +1,11 @@
 #![recursion_limit = "256"]
+#![allow(
+    clippy::must_use_candidate,
+    clippy::cast_possible_truncation,
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc,
+    clippy::missing_panics_doc
+)]
 
 pub mod analyzer;
 pub mod error;

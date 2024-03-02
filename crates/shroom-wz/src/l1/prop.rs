@@ -1,9 +1,6 @@
-use std::{
-    io::{Read, Seek},
-    ops::{Deref, DerefMut},
-};
+use std::io::{Read, Seek};
 
-use binrw::{binrw, BinRead, BinWrite, BinWriterExt};
+use binrw::{binrw, BinRead, BinReaderExt, BinWrite, BinWriterExt};
 
 use crate::{
     ctx::{WzImgReadCtx, WzImgWriteCtx},
@@ -27,7 +24,7 @@ impl BinRead for WzObjectValue {
         endian: binrw::Endian,
         args: Self::Args<'_>,
     ) -> binrw::BinResult<Self> {
-        let len = u32::read_options(reader, endian, ())? as u64;
+        let len: u64 = reader.read_type::<u32>(endian)?.into();
         let pos = reader.stream_position()?;
         let obj = Box::new(WzObject::read_options(reader, endian, args)?);
         // We don't read canvas/sound data so we need to skip It
@@ -52,7 +49,7 @@ impl BinWrite for WzObjectValue {
 
         // Write the object and record the length
         let pos = writer.stream_position()?;
-        writer.write_type_args(self.deref(), endian, args)?;
+        writer.write_type_args(self, endian, args)?;
         let end = writer.stream_position()?;
         let len = end - pos;
 
@@ -120,46 +117,42 @@ impl WzPropValue {
 
     pub fn as_obj(&self) -> Option<&WzObject> {
         match self {
-            Self::Obj(o) => Some(o.deref()),
+            Self::Obj(o) => Some(&o),
             _ => None,
         }
     }
 
     pub fn as_obj_mut(&mut self) -> Option<&mut WzObject> {
         match self {
-            Self::Obj(o) => Some(o.deref_mut()),
+            Self::Obj(ref mut o) => Some(o),
             _ => None,
         }
     }
 
     pub fn as_short(&self) -> Option<i16> {
         match self {
-            Self::Short1(s) => Some(*s),
-            Self::Short2(s) => Some(*s),
+            Self::Short1(s) | Self::Short2(s) => Some(*s),
             _ => None,
         }
     }
 
     pub fn as_short_mut(&mut self) -> Option<&mut i16> {
         match self {
-            Self::Short1(s) => Some(s),
-            Self::Short2(s) => Some(s),
+            Self::Short1(s) | Self::Short2(s) => Some(s),
             _ => None,
         }
     }
 
     pub fn as_int(&self) -> Option<WzInt> {
         match self {
-            Self::Int1(i) => Some(*i),
-            Self::Int2(i) => Some(*i),
+            Self::Int1(i) | Self::Int2(i) => Some(*i),
             _ => None,
         }
     }
 
     pub fn as_int_mut(&mut self) -> Option<&mut WzInt> {
         match self {
-            Self::Int1(i) => Some(i),
-            Self::Int2(i) => Some(i),
+            Self::Int1(i) | Self::Int2(i) => Some(i),
             _ => None,
         }
     }
@@ -302,7 +295,7 @@ impl BinWrite for WzConvex2D {
         args: Self::Args<'_>,
     ) -> binrw::BinResult<()> {
         WzInt(self.0.len() as i32).write_le(writer)?;
-        for v in self.0.iter() {
+        for v in &self.0 {
             WzObject::Vec2(*v).write_le_args(writer, args)?;
         }
         Ok(())

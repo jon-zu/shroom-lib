@@ -54,7 +54,7 @@ impl PacketField {
         self.check.as_ref().or(self.either.as_ref())
     }
 
-    /// Get the encode_len expr for this field
+    /// Get the encode len expr for this field
     pub fn encode_len_expr(&self, field_name: &TokenStream) -> TokenStream {
         if let Some(cond) = self.get_cond() {
             let cond = cond.self_expr();
@@ -64,7 +64,7 @@ impl PacketField {
         }
     }
 
-    /// Get the size_hint expr for this field
+    /// Get the size hint expr for this field
     pub fn size_hint_expr(&self) -> TokenStream {
         let ty = &self.ty;
         // Conditional has no SizeHint
@@ -121,20 +121,20 @@ impl ShroomPacket {
         };
 
         fields.iter().enumerate().map(|(i, field)| {
-            let ident = field
-                .ident
-                .as_ref()
-                .map(|v| (v.clone(), quote::quote!(#v)))
-                .unwrap_or_else(|| {
+            let ident = field.ident.as_ref().map_or_else(
+                || {
                     let i = syn::Index::from(i);
                     (quote::format_ident!("_{}", i), quote::quote!(#i))
-                });
+                },
+                |v| (v.clone(), quote::quote!(#v)),
+            );
 
             (ident, field)
         })
     }
 
     /// Generate decode expr
+    #[allow(clippy::unnecessary_wraps)]
     fn gen_decode(&self, token_stream: &mut proc_macro2::TokenStream) -> syn::Result<()> {
         let struct_name = &self.ident;
 
@@ -145,7 +145,7 @@ impl ShroomPacket {
         // Add lifetime as bound to each existing bound
         let dec_generics = add_trait_bounds(
             dec_generics,
-            parse_quote!(shroom_pkt::DecodePacket<#de_lifetime>),
+            &parse_quote!(shroom_pkt::DecodePacket<#de_lifetime>),
         );
 
         // Get type generics
@@ -176,11 +176,12 @@ impl ShroomPacket {
     }
 
     /// Generate encode expr
+    #[allow(clippy::unnecessary_wraps)]
     fn gen_encode(&self, token_stream: &mut proc_macro2::TokenStream) -> syn::Result<()> {
         let struct_name = &self.ident;
         let enc_generics = add_trait_bounds(
             self.generics.clone(),
-            parse_quote!(shroom_pkt::EncodePacket),
+            &parse_quote!(shroom_pkt::EncodePacket),
         );
 
         let (impl_generics, ty_generics, where_clause) = enc_generics.split_for_impl();
@@ -222,7 +223,7 @@ impl ShroomPacket {
     /// Generate encode and decode expr
     fn gen(&self, tokens: &mut proc_macro2::TokenStream) {
         self.gen_encode(tokens)
-            .and_then(|_| self.gen_decode(tokens))
+            .and_then(|()| self.gen_decode(tokens))
             .unwrap();
     }
 
@@ -231,7 +232,7 @@ impl ShroomPacket {
     }
 }
 
-/// EncodePacket is essentially a wrapper around ShroomPacket, which just generates the Encode part
+/// `EncodePacket` is essentially a wrapper around `ShroomPacket`, which just generates the Encode part
 struct EncodePacket(ShroomPacket);
 
 impl ToTokens for EncodePacket {
@@ -247,7 +248,7 @@ impl ToTokens for ShroomPacket {
 }
 
 /// Add the given trait bound to each generic parameter
-fn add_trait_bounds(mut generics: Generics, bound: TypeParamBound) -> Generics {
+fn add_trait_bounds(mut generics: Generics, bound: &TypeParamBound) -> Generics {
     for param in &mut generics.params {
         if let GenericParam::Type(ref mut type_param) = *param {
             type_param.bounds.push(bound.clone());
@@ -264,15 +265,13 @@ fn find_or_add_de_lifetime(generics: &mut Generics) -> &Lifetime {
         .position(|param| matches!(param, GenericParam::Lifetime(_)));
 
     // If lifetime is found use that
-    &match first_lifetime {
-        Some(ix) => &generics.params[ix],
-        // Else insert new lifetime with the name 'de
-        None => {
-            let lf = Lifetime::new("'de", Span::call_site());
-            let ty_lf: GenericParam = LifetimeParam::new(lf).into();
-            generics.params.push(ty_lf);
-            generics.params.last().expect("Last param must exist")
-        }
+    &if let Some(ix) = first_lifetime {
+        &generics.params[ix]
+    } else {
+        let lf = Lifetime::new("'de", Span::call_site());
+        let ty_lf: GenericParam = LifetimeParam::new(lf).into();
+        generics.params.push(ty_lf);
+        generics.params.last().expect("Last param must exist")
     }
     .as_lifetime_param()
     .expect("must be Lifetime")

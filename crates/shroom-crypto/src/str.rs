@@ -8,14 +8,15 @@ pub const DEFAULT_STRING_KEY: [u8; STRING_KEY_SIZE] = [
     0xd6, 0xde, 0x75, 0x86, 0x46, 0x64, 0xa3, 0x71, 0xe8, 0xe6, 0x7b, 0xd3, 0x33, 0x30, 0xe7, 0x2e,
 ];
 
+
+fn combine(a: u8, b: u8, shift: usize) -> u8 {
+    (a << shift) | (b >> (8 - shift))
+}
+
 fn rotate_left(slice: &mut [u8; STRING_KEY_SIZE], shift: usize) {
     let len = slice.len();
     if len == 0 {
         return;
-    }
-
-    fn combine(a: u8, b: u8, shift: usize) -> u8 {
-        (a << shift) | (b >> (8 - shift))
     }
 
     let bit_shifts = shift % 8;
@@ -57,12 +58,12 @@ impl StringCipher {
         for (i, b) in data.iter_mut().enumerate() {
             let k = key[i % key.len()];
             // Xoring with the key itself would produce a 0
-            *b = if *b != k { *b ^ k } else { k };
+            *b = if *b == k { k } else { *b ^ k };
         }
     }
 
     pub fn decrypt(&self, data: &mut [u8], seed: u8) {
-        self.xor_key(data, seed)
+        self.xor_key(data, seed);
     }
 
     pub fn decrypt_str<'a>(&self, data: &'a mut [u8]) -> Option<&'a CStr> {
@@ -73,9 +74,12 @@ impl StringCipher {
     }
 
     pub fn encrypt(&self, data: &mut [u8], seed: u8) {
-        self.xor_key(data, seed)
+        self.xor_key(data, seed);
     }
 
+    /// Encrypts the given string onto the writer
+    /// 
+    /// # Errors If the writer fails
     pub fn encrypt_str(&self, s: CString, seed: u8, mut w: impl Write) -> io::Result<()> {
         w.write_all(&[seed])?;
         let mut v = s.into_bytes();

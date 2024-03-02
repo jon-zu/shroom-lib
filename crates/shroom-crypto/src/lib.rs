@@ -1,3 +1,10 @@
+#![allow(
+    clippy::must_use_candidate,
+    clippy::cast_possible_truncation,
+    clippy::module_name_repetitions,
+    clippy::missing_errors_doc
+)]
+
 pub mod ig_cipher;
 pub mod str;
 pub mod version;
@@ -32,8 +39,8 @@ pub mod net {
 }
 
 pub mod wz {
-    pub mod wz_data_cipher;
-    pub mod wz_offset_cipher;
+    pub mod data_cipher;
+    pub mod offset_cipher;
 }
 
 // Re-exports

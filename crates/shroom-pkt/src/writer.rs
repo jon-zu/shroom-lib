@@ -14,7 +14,7 @@ pub struct PacketWriter<T = BytesMut> {
 impl Default for PacketWriter<BytesMut> {
     fn default() -> Self {
         Self {
-            buf: Default::default(),
+            buf: BytesMut::default(),
         }
     }
 }
@@ -60,7 +60,7 @@ impl<T> PacketWriter<T>
 where
     T: BufMut,
 {
-    /// Create a new PacketWriter from any BufMut
+    /// Create a new `PacketWriter` from any `BufMut`
     pub fn new(buf: T) -> Self {
         Self { buf }
     }
@@ -124,6 +124,7 @@ where
     /// Write an `i128`
     pub fn write_i128(&mut self, v: i128) -> PacketResult<()> {
         self.check_capacity(16)?;
+        #[allow(clippy::cast_sign_loss)]
         self.write_u128(v as u128)
     }
 

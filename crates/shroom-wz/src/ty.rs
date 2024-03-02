@@ -25,25 +25,25 @@ pub struct WzInt(pub i32);
 
 impl From<u16> for WzInt {
     fn from(value: u16) -> Self {
-        Self(value as i32)
+        Self(i32::from(value))
     }
 }
 
 impl From<u8> for WzInt {
     fn from(value: u8) -> Self {
-        Self(value as i32)
+        Self(i32::from(value))
     }
 }
 
 impl From<i8> for WzInt {
     fn from(value: i8) -> Self {
-        Self(value as i32)
+        Self(i32::from(value))
     }
 }
 
 impl From<i16> for WzInt {
     fn from(value: i16) -> Self {
-        Self(value as i32)
+        Self(i32::from(value))
     }
 }
 
@@ -60,7 +60,7 @@ impl BinRead for WzInt {
     ) -> binrw::BinResult<Self> {
         Ok(Self(match i8::read_options(reader, endian, args)? {
             V => i32::read_options(reader, endian, args)?,
-            flag => flag as i32,
+            flag => i32::from(flag)
         }))
     }
 }
@@ -109,7 +109,7 @@ impl BinRead for WzLong {
     ) -> binrw::BinResult<Self> {
         Ok(Self(match i8::read_options(reader, endian, args)? {
             V => i64::read_options(reader, endian, args)?,
-            flag => flag as i64,
+            flag => i64::from(flag)
         }))
     }
 }
@@ -373,7 +373,7 @@ impl From<WzOffset> for u32 {
 
 impl From<WzOffset> for u64 {
     fn from(value: WzOffset) -> u64 {
-        value.0 as u64
+        u64::from(value.0)
     }
 }
 

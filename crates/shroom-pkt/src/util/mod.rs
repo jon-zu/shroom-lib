@@ -2,6 +2,7 @@
 pub mod packet_buf;
 
 /// Helper type to calculate size hint
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 pub struct SizeHint(pub Option<usize>);
 
 impl SizeHint {
@@ -13,6 +14,7 @@ impl SizeHint {
     }
 
     /// Returns the maximum of both usizes
+    #[must_use]
     pub const fn max(self, rhs: Self) -> Self {
         const fn max_inner(a: usize, b: usize) -> usize {
             if a > b {
@@ -30,6 +32,7 @@ impl SizeHint {
 
     /// Sum two usize Options
     /// When const traits become stable Add can be implemented
+    #[must_use]
     pub const fn add(self, rhs: Self) -> Self {
         Self(match (self.0, rhs.0) {
             (Some(a), Some(b)) => Some(a + b),
@@ -38,6 +41,7 @@ impl SizeHint {
     }
 
     /// Adds n to the value, If It is not None
+    #[must_use]
     pub const fn add_n(self, rhs: usize) -> Self {
         match self.0 {
             Some(a) => Self::new(a + rhs),
@@ -46,6 +50,7 @@ impl SizeHint {
     }
 
     /// Multiply by n
+    #[must_use]
     pub const fn mul_n(self, n: usize) -> Self {
         Self(match self.0 {
             Some(a) => Some(a * n),
