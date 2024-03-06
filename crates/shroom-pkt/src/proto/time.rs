@@ -47,7 +47,7 @@ impl From<(bool, u32)> for ClientTimeOffset {
 impl From<ClientTimeOffset> for (bool, u32) {
     fn from(v: ClientTimeOffset) -> Self {
         let v = v.0 .0;
-        (v >= 0, v.unsigned_abs())
+        (v < 0, v.unsigned_abs())
     }
 }
 
