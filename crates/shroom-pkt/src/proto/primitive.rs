@@ -152,6 +152,28 @@ impl<D: EncodePacket> EncodePacket for Option<D> {
     }
 }
 
+
+pub struct ShroomMultiLineStr<'a>(pub &'a str);
+impl<'a> EncodePacket for ShroomMultiLineStr<'a> {
+    const SIZE_HINT: SizeHint = SizeHint::NONE;
+
+    fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
+        pw.write_multi_line_str(self.0)?;
+        Ok(())
+    }
+
+    fn encode_len(&self) -> usize {
+        //TODO figure this out
+        todo!("ShroomMultiLineStr::encode_len");
+    }
+}
+
+impl<'a> DecodePacket<'a> for ShroomMultiLineStr<'a> {
+    fn decode(pr: &mut PacketReader<'a>) -> PacketResult<Self> {
+        Ok(Self(pr.read_string()?))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use crate::test_util::test_enc_dec_all;

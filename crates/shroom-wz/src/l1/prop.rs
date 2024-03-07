@@ -117,7 +117,7 @@ impl WzPropValue {
 
     pub fn as_obj(&self) -> Option<&WzObject> {
         match self {
-            Self::Obj(o) => Some(&o),
+            Self::Obj(o) => Some(o),
             _ => None,
         }
     }

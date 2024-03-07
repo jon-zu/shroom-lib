@@ -25,11 +25,11 @@ impl<T> PacketWriter<T> {
         self.buf
     }
 
-    pub fn get_mut(&mut self) -> &mut T {
+    pub fn buf_mut(&mut self) -> &mut T {
         &mut self.buf
     }
 
-    pub fn get_ref(&mut self) -> &T {
+    pub fn buf(&mut self) -> &T {
         &self.buf
     }
 }
@@ -53,6 +53,10 @@ impl PacketWriter<BytesMut> {
     /// Consume the buffer into a packet
     pub fn into_packet(self) -> Packet {
         Packet::from(self.buf)
+    }
+
+    pub fn reader(&self) -> crate::PacketReader<'_> {
+        crate::PacketReader::new(self.buf.as_ref())
     }
 }
 
@@ -190,6 +194,52 @@ where
         self.buf.put_slice(b);
         Ok(())
     }
+
+    /// Writes a multi line string but ensuring the line breaks are CRLF
+    pub fn write_multi_line_str(&mut self, mut v: &str) -> PacketResult<()> {
+        // Get the remaining bytes
+        let remaining = self.buf.chunk_mut();
+
+        // Write dummy value for the length
+        if remaining.len() < 2 {
+            return Err(Error::OutOfCapacity);
+        }
+
+        
+        remaining[..2].copy_from_slice(&0_u16.to_le_bytes());
+        let mut ix = 2;
+
+        while let Some((line, tail)) = v.split_once('\n') {
+            let line = line.strip_suffix('\r').unwrap_or(line);
+
+            let b = line.as_bytes();
+            if remaining.len() < ix + b.len() + 2 {
+                return Err(Error::OutOfCapacity);
+            }
+
+            remaining[ix..ix + b.len()].copy_from_slice(b);
+            ix += b.len();
+            remaining[ix..ix+2].copy_from_slice(b"\r\n");
+            ix += 2;
+            v = tail;
+        }
+
+        if !v.is_empty() {
+            let b = v.as_bytes();
+            if remaining.len() < ix + b.len() {
+                return Err(Error::OutOfCapacity);
+            }
+            remaining[ix..ix + b.len()].copy_from_slice(b);
+            ix += b.len();
+        }
+
+
+        remaining[..2].copy_from_slice(&(ix as u16 - 2).to_le_bytes());
+
+        // # Safety we initialized ix bytes correctly
+        unsafe { self.buf.advance_mut(ix) };
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -201,7 +251,29 @@ mod tests {
         let mut pw = PacketWriter::with_capacity(64);
         pw.write_u8(0).unwrap();
         pw.write_bytes(&[1, 2, 3, 4]).unwrap();
-
         assert_eq!(pw.len(), 5);
+    }
+
+    #[test]
+    fn multi_line_str() {
+        let tests = [
+            ("\r\n", "\r\n"),
+            ("\n\r\n", "\r\n\r\n"),
+            ("Hello\nWorld\n", "Hello\r\nWorld\r\n"),
+            ("Hello\nWorld", "Hello\r\nWorld"),
+            ("Hello\nWorld\n\n", "Hello\r\nWorld\r\n\r\n"),
+            ("", ""),
+            ("\n", "\r\n"),
+        ];
+
+        for (inp, ex) in tests.iter() {
+            let mut pw = PacketWriter::with_capacity(64);
+            pw.write_multi_line_str(inp).unwrap();
+            assert_eq!(&pw.buf().as_ref()[2..], ex.as_bytes());
+
+            // Try reading
+            let mut pr = pw.reader();
+            assert_eq!(pr.read_string().unwrap(), *ex);
+        }
     }
 }

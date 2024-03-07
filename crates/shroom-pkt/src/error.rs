@@ -2,19 +2,91 @@ use std::{fmt::Display, str::Utf8Error};
 
 use nt_time::error::FileTimeRangeError;
 use num_enum::{TryFromPrimitive, TryFromPrimitiveError};
-
-use crate::analyzer::PacketDataAnalytics;
 use thiserror::Error;
+
+use crate::analyzer::PacketAnalyzer;
+
+#[derive(Debug)]
+#[cfg(feature = "eof_ext")]
+pub struct EOFExtraData {
+    type_name: &'static str,
+    read_len: usize,
+}
+
+#[derive(Debug)]
+#[cfg(not(feature = "eof_ext"))]
+pub struct EOFExtraData;
+
+impl EOFExtraData {
+    #[cfg(feature = "eof_ext")]
+    pub fn from_type<T>(read_len: usize) -> Self {
+        let type_name = std::any::type_name::<T>();
+
+        EOFExtraData {
+            type_name,
+            read_len,
+        }
+    }
+
+    #[cfg(not(feature = "eof_ext"))]
+    pub fn from_type<T>(_read_len: usize) -> Self {
+        EOFExtraData
+    }
+}
 
 #[derive(Debug)]
 pub struct EOFErrorData {
-    pub analytics: PacketDataAnalytics,
-    pub type_name: &'static str,
+    pub pos: usize,
+    #[cfg(feature = "eof_ext")]
+    pub extra: Box<EOFExtraData>,
+}
+
+impl EOFErrorData {
+    pub fn from_type<T>(pos: usize, read_len: usize) -> Self {
+        let extra = EOFExtraData::from_type::<T>(read_len);
+        EOFErrorData {
+            pos,
+            extra: Box::new(extra),
+        }
+    }
+
+    pub fn analytics<'a>(&'a self, data: &'a [u8]) -> PacketAnalyzer<'a> {
+        PacketAnalyzer::new(self, data)
+    }
+
+    #[cfg(not(feature = "eof_ext"))]
+    pub fn read_len(&self) -> usize {
+        // Holy number for context
+        4
+    }
+
+    #[cfg(feature = "eof_ext")]
+    pub fn read_len(&self) -> usize {
+        self.extra.read_len
+    }
+
+    #[cfg(not(feature = "eof_ext"))]
+    pub fn type_name(&self) -> &str {
+        "unknown"
+    }
+
+    #[cfg(feature = "eof_ext")]
+    pub fn type_name(&self) -> &str {
+        self.extra.type_name
+    }
 }
 
 impl Display for EOFErrorData {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "eof packet(type={}): {}", self.type_name, self.analytics)
+        if cfg!(feature = "eof_ext") {
+            write!(
+                f,
+                "eof packet(type={}): {}",
+                self.extra.type_name, self.extra.read_len
+            )
+        } else {
+            write!(f, "eof packet: {}", self.pos)
+        }
     }
 }
 
@@ -23,7 +95,7 @@ pub enum Error {
     #[error("string utf8 error")]
     StringUtf8(#[from] Utf8Error),
     #[error("EOF error: {0}")]
-    EOF(Box<EOFErrorData>),
+    EOF(EOFErrorData),
     #[error("String limit {0} exceeed")]
     StringLimit(usize),
     #[error("Invalid enum discriminant {0}")]
@@ -42,18 +114,6 @@ pub enum Error {
     NoOpCode,
     #[error("Invalid all bits")]
     InvalidAllBits,
-}
-
-impl Error {
-    //TODO disable diagnostic for release builds
-    pub fn eof<T>(data: &[u8], read_len: usize) -> Self {
-        let type_name = std::any::type_name::<T>();
-        let pos = data.len().saturating_sub(read_len);
-        Self::EOF(Box::new(EOFErrorData {
-            analytics: PacketDataAnalytics::from_data(data, pos, read_len, read_len * 5),
-            type_name,
-        }))
-    }
 }
 
 impl<E> From<TryFromPrimitiveError<E>> for Error

@@ -1,21 +1,36 @@
-use itertools::Itertools;
-use std::iter;
-
 use crate::{pkt::EncodeMessage, PacketResult};
 
 /// Buffer to allow to encode multiple packets onto one buffer
 /// while still allowing to iterate over the encoded packets
 #[derive(Debug, Default)]
 pub struct PacketBuf {
-    buf: Vec<u8>,
-    ix: Vec<usize>,
+    buf: Vec<u8>
+}
+
+pub struct PacketIter<'a> {
+    buf: &'a [u8],
+    ix: usize
+}
+
+impl<'a> Iterator for PacketIter<'a> {
+    type Item = &'a [u8];
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if self.ix < self.buf.len() {
+            let ix = self.ix;
+            let ln = u16::from_ne_bytes(self.buf[ix..ix + 2].try_into().unwrap()) as usize;
+            self.ix += 2 + ln;
+            Some(&self.buf[ix+2..self.ix])
+        } else {
+            None
+        }
+    }
 }
 
 impl PacketBuf {
     pub fn with_capacity(cap: usize) -> Self {
         Self {
-            buf: Vec::with_capacity(cap),
-            ix: Vec::new(),
+            buf: Vec::with_capacity(cap)
         }
     }
 
@@ -24,40 +39,39 @@ impl PacketBuf {
         // Store the previous index
         let ix = self.buf.len();
 
+        // Write a dummy length
+        self.buf.extend_from_slice(&[0, 0]);
+
         // If an error occurs reset the index
         if let Err(err) = pkt.encode_message(&mut self.buf) {
             self.buf.truncate(ix);
             return Err(err);
         }
 
-        // Store the ix of the current packet
-        self.ix.push(ix);
+        // Get the actual length
+        let len = self.buf.len() - ix - 2;
+        self.buf[ix..ix + 2].copy_from_slice(&(len as u16).to_ne_bytes());
         Ok(())
     }
 
     /// Iterator over the written packet frames
-    pub fn packets(&self) -> impl Iterator<Item = &[u8]> + '_ {
-        self.ix
-            .iter()
-            .copied()
-            .chain(iter::once(self.buf.len()))
-            .tuple_windows()
-            .map(|(l, r)| &self.buf[l..r])
+    pub fn packets(&self) -> PacketIter<'_> {
+        PacketIter {
+            buf: &self.buf,
+            ix: 0
+        }
     }
 
     /// Clears the buffer
     pub fn clear(&mut self) {
         self.buf.truncate(0);
-        self.ix.clear();
     }
 }
 
 #[cfg(test)]
 mod tests {
     use derive_more::{From, Into};
-
     use crate::{opcode::HasOpCode, packet_wrap};
-
     use super::PacketBuf;
 
     #[derive(Debug, Copy, Clone, From, Into)]
@@ -76,12 +90,11 @@ mod tests {
         buf.encode(V(1))?;
         buf.encode(V(2))?;
         buf.encode(V(3))?;
-
         itertools::assert_equal(buf.packets(), [[1, 0, 1], [1, 0, 2], [1, 0, 3]]);
 
         buf.clear();
-
         assert_eq!(buf.packets().count(), 0);
+
         buf.encode(V(1))?;
         itertools::assert_equal(buf.packets(), [[1, 0, 1]]);
 

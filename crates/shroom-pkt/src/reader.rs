@@ -2,8 +2,8 @@ use std::io::Cursor;
 
 use bytes::Buf;
 
+use crate::error::EOFErrorData;
 use super::{error::Error, PacketResult, ShroomOpCode};
-
 use super::shroom128_from_bytes;
 
 /// Packet Reader for reading data
@@ -17,6 +17,7 @@ impl<'a, T: AsRef<[u8]>> From<&'a T> for PacketReader<'a> {
         Self::new(v.as_ref())
     }
 }
+
 
 impl<'a> PacketReader<'a> {
     /// Create a new Pacekt reader from a slice
@@ -42,7 +43,9 @@ impl<'a> PacketReader<'a> {
         if self.inner.remaining() >= n {
             Ok(())
         } else {
-            Err(Error::eof::<T>(self.inner.get_ref(), n))
+            Err(Error::EOF(
+                EOFErrorData::from_type::<T>(self.position(), n),
+            ))
         }
     }
 
@@ -77,6 +80,11 @@ impl<'a> PacketReader<'a> {
     /// Gets the remaining bytes
     pub fn remaining(&self) -> usize {
         self.inner.remaining()
+    }
+
+    /// Gets the position
+    pub fn position(&self) -> usize {
+        self.inner.position() as usize
     }
 
     /// Create a sub reader based on this slice
@@ -187,17 +195,31 @@ impl<'a> PacketReader<'a> {
     }
 }
 
+
+
+
 #[cfg(test)]
 mod tests {
     use crate::PacketReader;
+    use hexlit::hex;
 
     #[test]
     fn remaining() {
         let b = [1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10];
-        let mut r = PacketReader::from(&b);
+        let mut r = PacketReader::from(&[1u8, 2, 3, 4, 5, 6, 7, 8, 9, 10]);
 
         assert_eq!(r.read_u8().unwrap(), 1);
         assert_eq!(r.remaining(), 9);
         assert_eq!(r.remaining_slice(), &b[1..]);
+    }
+
+    #[test]
+    fn read() {
+        let data = hexlit::hex!("01 02 03 04");
+        let mut r = PacketReader::from(&data);
+        assert_eq!(r.read_u8().unwrap(), 1);
+        assert_eq!(r.read_u8().unwrap(), 2);
+        assert_eq!(r.read_u8().unwrap(), 3);
+        assert_eq!(r.read_u8().unwrap(), 4);
     }
 }

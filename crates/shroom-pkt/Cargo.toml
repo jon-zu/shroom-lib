@@ -3,6 +3,11 @@ name = "shroom-pkt"
 version = "0.1.1"
 edition = "2021"
 
+[features]
+default = ["eof_ext"]
+# provides extra data, for packet parsing errors
+eof_ext = []
+
 [[test]]
 name = "tests"
 path = "tests/progress.rs"
@@ -30,4 +35,5 @@ pretty-hex = "0.4.0"
 thiserror = "1.0.48"
 shroom-pkt-derive = { path = "../shroom-pkt-derive" }
 nt-time = { version = "0.6.5", features = ["chrono", "std"] }
+hexlit = "0.5.5"
 
