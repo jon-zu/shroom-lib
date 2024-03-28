@@ -27,7 +27,7 @@ impl TryFrom<&Canvas> for AnimationFrame {
         let prop = canvas.prop.as_ref().context("No property")?;
         let origin: Option<Vec2> = prop.get_as("origin");
         let delay: Duration =
-            Duration::from_millis(prop.get_as::<i32>("delay").unwrap_or(100) as u64);
+            Duration::from_millis(prop.get_as::<i32>("delay").context("No delay")? as u64);
         let z: Option<i32> = prop.get_as("z");
 
         Ok(Self {
@@ -94,11 +94,15 @@ impl TryFrom<&Property> for Animation {
             })
             .map(|(_, v)| AnimationFrame::try_from(v))
             .collect::<Result<Vec<_>, _>>()?;
+        
         //TODO
         if frames.is_empty() {
-            return Err(anyhow::anyhow!("Animation must have at least 3 frames"));
+            return Err(anyhow::anyhow!("Animation must have at least 1 frame"));
         }
         let total_dur = frames.iter().map(|f| f.delay).sum();
-        Ok(Self { frames, dur: total_dur })
+        Ok(Self {
+            frames,
+            dur: total_dur,
+        })
     }
 }

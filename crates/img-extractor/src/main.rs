@@ -12,7 +12,7 @@ fn main() -> anyhow::Result<()> {
     for file in files? {
         let path = file?;
         let file = BufReader::new(File::open(&path)?);
-        let mut img = ImgReader::new(file, crypto.clone());
+        let mut img = ImgReader::new(file, crypto.clone().into());
         let obj = Object::from_reader(&mut img)?;
 
 

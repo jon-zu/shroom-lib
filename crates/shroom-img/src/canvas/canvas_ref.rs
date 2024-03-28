@@ -1,9 +1,8 @@
 use std::vec;
 
-use anyhow::Error;
 use bit_struct::{u4, u5, u6};
 use bytemuck::{Pod, Zeroable};
-use image::{ImageBuffer, Rgba, RgbaImage};
+use image::RgbaImage;
 use rgb::{alt::BGRA8, RGBA8};
 
 use crate::canvas::{WzCanvasHeader, WzPixelFormat};
@@ -56,19 +55,21 @@ impl From<BGR565> for rgb::RGBA8 {
     }
 }
 
-/// Represents a
-pub struct CanvasBuffer<'a> {
+/// Represents a reference to a canvas
+/// by holding a reference to the data and the header
+pub struct CanvasRef<'a> {
     pub data: &'a [u8],
     pub hdr: &'a WzCanvasHeader,
 }
 
-pub type CanvasRgbaImage<'a> = ImageBuffer<Rgba<u8>, &'a [u8]>;
-
-impl<'a> CanvasBuffer<'a> {
+impl<'a> CanvasRef<'a> {
     pub fn new(data: &'a [u8], hdr: &'a WzCanvasHeader) -> Self {
         Self { data, hdr }
     }
 
+    // TODO: Allow owned conversions for dxt3 and dxt5
+    // to avoid reallocations
+    // also allow the caller to provide the buffer
     fn create_img<P: Into<rgb::RGBA8> + Copy>(data: &[P], (w, h): (u32, u32)) -> RgbaImage {
         RgbaImage::from_fn(w, h, |x, y| {
             let pix: rgb::RGBA8 = data[(x + y * w) as usize].into();
@@ -76,7 +77,7 @@ impl<'a> CanvasBuffer<'a> {
         })
     }
 
-    pub fn to_raw_rgba_image(&self) -> anyhow::Result<image::RgbaImage> {
+    pub fn to_rgba_image(&self) -> anyhow::Result<image::RgbaImage> {
         let (w, h) = self.hdr.dim();
 
         Ok(match self.hdr.pix_fmt {
@@ -102,24 +103,3 @@ impl<'a> CanvasBuffer<'a> {
         })
     }
 }
-
-impl<'a> TryInto<CanvasRgbaImage<'a>> for CanvasBuffer<'a> {
-    type Error = Error;
-
-    fn try_into(self) -> Result<CanvasRgbaImage<'a>, Self::Error> {
-        todo!()
-    }
-}
-
-/* 
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn bgra4() {
-        let v = BGRA4::new(1,2,3,4);
-        let rgba: RGBA8 = v.into();
-        assert_eq!(rgba, [4, 3, 2, 1].into());
-    }
-}*/

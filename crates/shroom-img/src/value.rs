@@ -303,14 +303,11 @@ mod tests {
     #[test]
     fn test_all() {
         let crypto = Arc::new(ImgCrypto::global());
-        for (i, img_file) in glob(&format!("{DATA}/**/*.img"))
-            .unwrap()
-            .enumerate()
-        {
+        for (i, img_file) in glob(&format!("{DATA}/**/*.img")).unwrap().enumerate() {
             let img_file = img_file.unwrap();
             dbg!(i);
             dbg!(&img_file);
-            let mut r = ImgReader::open(img_file, crypto.clone()).unwrap();
+            let mut r = ImgReader::open(img_file, crypto.clone().into()).unwrap();
 
             Object::from_reader(&mut r).unwrap();
         }
@@ -323,18 +320,23 @@ mod tests {
         let p = "Mob/9400630.img";
 
         let crypto = Arc::new(ImgCrypto::global());
-        let mut r = ImgReader::open(format!("{DATA}/{p}"), crypto.clone()).unwrap();
+        let mut r = ImgReader::open(format!("{DATA}/{p}"), crypto.clone().into()).unwrap();
         let value = Object::from_reader(&mut r).unwrap();
         //dbg!(&value);
 
         let out_json = serde_json::to_string_pretty(&value).unwrap();
         std::fs::write("out.json", out_json).unwrap();
 
-        let mut w = ImgWriter::create_file("out.img", r.as_resolver(), crypto.clone()).unwrap();
+        let mut w = ImgWriter::create_file("out.img", r.as_resolver(), crypto.into()).unwrap();
         value.write(&mut w).unwrap();
         dbg!(w.pos().unwrap());
 
-        let mut w = ImgWriter::create_file("out_dec.img", r.as_resolver(), Arc::new(ImgCrypto::none())).unwrap();
+        let mut w = ImgWriter::create_file(
+            "out_dec.img",
+            r.as_resolver(),
+            Arc::new(ImgCrypto::none()).into(),
+        )
+        .unwrap();
         value.write(&mut w).unwrap();
         dbg!(w.pos().unwrap());
     }
@@ -342,7 +344,7 @@ mod tests {
     #[test]
     fn myimg() {
         let f = BufReader::new(File::open("out.img").unwrap());
-        let mut r = ImgReader::new(f, ImgCrypto::global().into());
+        let mut r = ImgReader::new(f, Arc::new(ImgCrypto::global()).into());
         let value = Object::from_reader(&mut r).unwrap();
         dbg!(&value);
     }

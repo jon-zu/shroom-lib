@@ -1,6 +1,7 @@
-use std::io::{Read, Seek};
+use std::{io::{Read, Seek}, ops::Deref, sync::Arc};
 
 use binrw::{BinRead, BinWrite};
+use crypto::ImgCrypto;
 use error::ImgError;
 use serde::{Deserialize, Serialize};
 use str_table::{ImgStr, ReadStrCtx, WriteStrCtx};
@@ -19,6 +20,36 @@ pub mod value;
 pub mod writer;
 
 pub type Offset = u32;
+
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+pub enum CanvasDataFlag {
+    None,
+    Chunked,
+    AutoDetect
+}
+
+#[derive(Debug)]
+pub struct ImgContext {
+    pub data_flag: CanvasDataFlag,
+    pub crypto: Arc<ImgCrypto>
+}
+
+impl From<Arc<ImgCrypto>> for ImgContext {
+    fn from(crypto: Arc<ImgCrypto>) -> Self {
+        Self {
+            data_flag: CanvasDataFlag::None,
+            crypto
+        }
+    }
+}
+
+impl Deref for ImgContext {
+    type Target = ImgCrypto;
+
+    fn deref(&self) -> &Self::Target {
+        &self.crypto
+    }
+}
 
 pub const OBJ_TYPE_PROPERTY: &[u8] = b"Property";
 pub const OBJ_TYPE_CANVAS: &[u8] = b"Canvas";

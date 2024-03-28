@@ -97,28 +97,6 @@ impl StrOffsetTable {
     ) -> BinResult<()> {
         self.write_table_str(w, crypto, s, 1, 0)
     }
-
-    /*
-    pub fn write_new_ty_str(
-        &mut self,
-        mut w: impl ImgWrite,
-        crypto: &ImgCrypto,
-        s: &str,
-    ) -> BinResult<u64> {
-        let offset = w.stream_position()? + 1;
-        (0x73u8).write_le(&mut w)?;
-        WzStrRef(s).write_le_args(&mut w, crypto)?;
-        Ok(offset)
-    }
-
-    pub fn write_img_str(
-        &mut self,
-        w: impl ImgWrite,
-        crypto: &ImgCrypto,
-        s: &str,
-    ) -> BinResult<()> {
-        self.write_table_str(w, crypto, s, 1, 0)
-    }*/
 }
 
 #[derive(Debug, Default)]
@@ -150,23 +128,33 @@ impl OffsetStrTable {
         Ok(self.0.get(&offset).unwrap())
     }
 
+    fn read_table_str<R: Read + Seek>(
+        &mut self,
+        r: &mut R,
+        crypto: &ImgCrypto,
+        tag_table: u8,
+        tag_newstr: u8,
+    ) -> BinResult<&ArcStr> {
+        let tag: u8 = r.read_le()?;
+
+        if tag == tag_table {
+            self.read_str_offset(r)
+        } else if tag == tag_newstr {
+            self.read_str(r, crypto)
+        } else {
+            Err(binrw::Error::BadMagic {
+                pos: r.stream_position().unwrap(),
+                found: Box::new(tag),
+            })
+        }
+    }
+
     pub fn read_ty_str<R: Read + Seek>(
         &mut self,
         r: &mut R,
         crypto: &ImgCrypto,
     ) -> BinResult<&ArcStr> {
-        let tag: u8 = r.read_le()?;
-
-        Ok(match tag {
-            0x1B => self.read_str_offset(r)?,
-            0x73 => self.read_str(r, crypto)?,
-            _ => {
-                return Err(binrw::Error::BadMagic {
-                    pos: r.stream_position().unwrap(),
-                    found: Box::new(tag),
-                })
-            }
-        })
+        self.read_table_str(r, crypto, 0x1B, 0x73)
     }
 
     pub fn read_img_str<R: Read + Seek>(
@@ -174,18 +162,7 @@ impl OffsetStrTable {
         r: &mut R,
         crypto: &ImgCrypto,
     ) -> BinResult<&ArcStr> {
-        let tag: u8 = r.read_le()?;
-
-        Ok(match tag {
-            1 => self.read_str_offset(r)?,
-            0 => self.read_str(r, crypto)?,
-            _ => {
-                return Err(binrw::Error::BadMagic {
-                    pos: r.stream_position().unwrap(),
-                    found: Box::new(tag),
-                })
-            }
-        })
+        self.read_table_str(r, crypto, 1, 0)
     }
 }
 

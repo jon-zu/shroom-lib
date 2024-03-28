@@ -20,7 +20,7 @@ use crate::{
     sound::WzSound,
     ty::WzInt,
     util::BufReadExt,
-    Convex2, Link, PropertyValue, Vec2,
+    Convex2, ImgContext, Link, PropertyValue, Vec2,
 };
 use crate::{
     str_table::{OffsetStrTable, ReadStrCtx},
@@ -32,28 +32,28 @@ impl<T: BufRead + Read + Seek> ImgRead for T {}
 
 pub struct ImgReader<R> {
     r: R,
-    crypto: Arc<ImgCrypto>,
+    ctx: ImgContext,
     str_table: OffsetStrTable,
 }
 
 impl ImgReader<BufReader<File>> {
-    pub fn open(path: impl AsRef<Path>, crypto: Arc<ImgCrypto>) -> BinResult<Self> {
+    pub fn open(path: impl AsRef<Path>, ctx: ImgContext) -> BinResult<Self> {
         let file = File::open(path)?;
-        Ok(Self::new(BufReader::new(file), crypto))
+        Ok(Self::new(BufReader::new(file), ctx))
     }
 }
 
 impl<'a> ImgReader<Cursor<&'a [u8]>> {
-    pub fn from_bytes(bytes: &'a [u8], crypto: Arc<ImgCrypto>) -> Self {
-        Self::new(Cursor::new(bytes), crypto)
+    pub fn from_bytes(bytes: &'a [u8], ctx: ImgContext) -> Self {
+        Self::new(Cursor::new(bytes), ctx)
     }
 }
 
 impl<R: ImgRead> ImgReader<R> {
-    pub fn new(reader: R, crypto: Arc<ImgCrypto>) -> Self {
+    pub fn new(reader: R, cfg: ImgContext) -> Self {
         Self {
             r: reader,
-            crypto,
+            ctx: cfg,
             str_table: OffsetStrTable::default(),
         }
     }
@@ -71,7 +71,7 @@ impl<R: ImgRead> ImgReader<R> {
     }
 
     fn read_img_str(&mut self) -> BinResult<&ArcStr> {
-        self.str_table.read_img_str(&mut self.r, &self.crypto)
+        self.str_table.read_img_str(&mut self.r, &self.ctx)
     }
 
     pub fn read_vec2(&mut self) -> BinResult<Vec2> {
@@ -82,7 +82,7 @@ impl<R: ImgRead> ImgReader<R> {
         Convex2::read_le_args(
             &mut self.r,
             ReadStrCtx {
-                crypto: &self.crypto,
+                crypto: &self.ctx,
                 str_table: &mut self.str_table,
             },
         )
@@ -92,7 +92,7 @@ impl<R: ImgRead> ImgReader<R> {
         Link::read_le_args(
             &mut self.r,
             ReadStrCtx {
-                crypto: &self.crypto,
+                crypto: &self.ctx,
                 str_table: &mut self.str_table,
             },
         )
@@ -102,7 +102,7 @@ impl<R: ImgRead> ImgReader<R> {
         ObjTypeTag::read_le_args(
             &mut self.r,
             ReadStrCtx {
-                crypto: &self.crypto,
+                crypto: &self.ctx,
                 str_table: &mut self.str_table,
             },
         )
@@ -116,7 +116,7 @@ impl<R: ImgRead> ImgReader<R> {
         PropertyValue::read_le_args(
             &mut self.r,
             ReadStrCtx {
-                crypto: &self.crypto,
+                crypto: &self.ctx,
                 str_table: &mut self.str_table,
             },
         )
@@ -174,7 +174,7 @@ impl<R: ImgRead> ImgReader<R> {
         let (_, len) = self.read_canvas_len()?;
         let mut limited = (&mut self.r).take(len.data_len() as u64);
         limited
-            .decompress_flate_size_to(w, hdr.img_data_size() as u64)
+            .decompress_flate_size_to(w, hdr.txt_data_size() as u64)
             .map_err(|err| ImgError::DecompressionFailed(offset, err).binrw_error(&mut self.r))?;
 
         Ok(())
