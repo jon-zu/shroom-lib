@@ -6,6 +6,12 @@ use num_enum::{IntoPrimitive, TryFromPrimitive};
 use serde::Deserialize;
 use serde::Serialize;
 
+pub mod canvas_ref;
+pub mod animation;
+
+pub use canvas_ref::CanvasRef;
+pub use animation::{Animation, AnimationFrame};
+
 /// Canvas scaling
 #[derive(
     Debug,
@@ -134,46 +140,36 @@ impl WzCanvasLen {
 impl WzCanvasHeader {
     /// Total pixels
     pub fn pixels(&self) -> u32 {
-        self.width() * self.height()
+        self.width * self.height
     }
 
     /// Pixels of the unscaled source img
-    pub fn img_pixels(&self) -> u32 {
-        self.img_width() * self.img_height()
+    pub fn txt_pixels(&self) -> u32 {
+        self.txt_width() * self.txt_height()
     }
 
     /// Size of the img source in bytes
-    pub fn img_data_size(&self) -> usize {
-        self.img_pixels() as usize * self.pix_fmt.pixel_size()
+    pub fn txt_data_size(&self) -> usize {
+        self.txt_pixels() as usize * self.pix_fmt.pixel_size()
     }
 
     /// Dimension of the canvas
     pub fn dim(&self) -> (u32, u32) {
-        (self.width(), self.height())
+        (self.width, self.height)
     }
 
     /// Dimension of the img source
     pub fn img_dim(&self) -> (u32, u32) {
-        (self.img_height(), self.img_width())
+        (self.txt_height(), self.txt_width())
     }
 
-    /// Height
-    pub fn height(&self) -> u32 {
-        self.height
+    /// Height of the backing image
+    pub fn txt_height(&self) -> u32 {
+        self.scale.unscale(self.height)
     }
 
-    /// Width
-    pub fn width(&self) -> u32 {
-        self.width
-    }
-
-    /// Height of the source image
-    pub fn img_height(&self) -> u32 {
-        self.scale.unscale(self.height())
-    }
-
-    /// Width of the source image
-    pub fn img_width(&self) -> u32 {
-        self.scale.unscale(self.width())
+    /// Width of the backing texture
+    pub fn txt_width(&self) -> u32 {
+        self.scale.unscale(self.width)
     }
 }

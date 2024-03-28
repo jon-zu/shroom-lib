@@ -2,18 +2,17 @@ use arcstr::ArcStr;
 use binrw::{BinResult, BinWrite, Endian};
 use std::{
     fs::File,
-    io::{BufWriter, Cursor, Seek, Write}, sync::Arc,
+    io::{BufWriter, Cursor, Seek, Write},
 };
 
 use crate::{
     canvas::{WzCanvasHeader, WzCanvasLen, WzCanvasPropHeader},
-    crypto::ImgCrypto,
     data::{Data, DataResolver},
     error::ImgError,
     sound::WzSound,
     str_table::{ImgStr, StrOffsetTable, WriteStrCtx},
     util::WriteExt,
-    Convex2, Link, ObjTypeTag, Property, PropertyValue, Vec2,
+    Convex2, ImgContext, Link, ObjTypeTag, Property, PropertyValue, Vec2,
 };
 
 pub trait ImgWrite: Write + Seek {}
@@ -22,7 +21,7 @@ impl<T: Write + Seek> ImgWrite for T {}
 pub struct ImgWriter<W, D> {
     w: W,
     data_resolver: D,
-    crypto: Arc<ImgCrypto>,
+    ctx: ImgContext,
     str_table: StrOffsetTable,
 }
 
@@ -30,7 +29,7 @@ impl<D> ImgWriter<BufWriter<File>, D> {
     pub fn create_file(
         path: impl AsRef<std::path::Path>,
         data_resolver: D,
-        crypto: Arc<ImgCrypto>,
+        crypto: ImgContext,
     ) -> BinResult<Self> {
         let file = BufWriter::new(std::fs::File::create(path)?);
         Ok(Self::new(file, data_resolver, crypto))
@@ -38,19 +37,16 @@ impl<D> ImgWriter<BufWriter<File>, D> {
 }
 
 impl<D> ImgWriter<Cursor<Vec<u8>>, D> {
-    pub fn create_buf(
-        data_resolver: D,
-        crypto: Arc<ImgCrypto>,
-    ) -> BinResult<Self> {
+    pub fn create_buf(data_resolver: D, crypto: ImgContext) -> BinResult<Self> {
         Ok(Self::new(Cursor::new(Vec::new()), data_resolver, crypto))
     }
 }
 
 impl<W: ImgWrite, D> ImgWriter<W, D> {
-    pub fn new(w: W, data_resolver: D, crypto: Arc<ImgCrypto>) -> Self {
+    pub fn new(w: W, data_resolver: D, crypto: ImgContext) -> Self {
         Self {
             w,
-            crypto,
+            ctx: crypto,
             data_resolver,
             str_table: StrOffsetTable::default(),
         }
@@ -62,7 +58,7 @@ impl<W: ImgWrite, D> ImgWriter<W, D> {
             Endian::Little,
             WriteStrCtx {
                 str_table: &mut self.str_table,
-                crypto: &self.crypto,
+                crypto: &self.ctx,
             },
         )?;
         Ok(())
@@ -74,8 +70,7 @@ impl<W: ImgWrite, D> ImgWriter<W, D> {
     }
 
     pub fn write_property_key(&mut self, key: &str) -> BinResult<()> {
-        self.str_table
-            .write_img_str(&mut self.w, &self.crypto, key)?;
+        self.str_table.write_img_str(&mut self.w, &self.ctx, key)?;
         Ok(())
     }
 
@@ -85,7 +80,7 @@ impl<W: ImgWrite, D> ImgWriter<W, D> {
             Endian::Little,
             WriteStrCtx {
                 str_table: &mut self.str_table,
-                crypto: &self.crypto,
+                crypto: &self.ctx,
             },
         )?;
         Ok(())
@@ -101,7 +96,7 @@ impl<W: ImgWrite, D> ImgWriter<W, D> {
             Endian::Little,
             WriteStrCtx {
                 str_table: &mut self.str_table,
-                crypto: &self.crypto,
+                crypto: &self.ctx,
             },
         )?;
         Ok(())
@@ -113,7 +108,7 @@ impl<W: ImgWrite, D> ImgWriter<W, D> {
             Endian::Little,
             WriteStrCtx {
                 str_table: &mut self.str_table,
-                crypto: &self.crypto,
+                crypto: &self.ctx,
             },
         )
     }
@@ -154,7 +149,6 @@ impl<W: ImgWrite, D> ImgWriter<W, D> {
         Ok(())
     }
 }
-
 
 impl<W: ImgWrite, D: DataResolver> ImgWriter<W, D> {
     pub fn write_canvas(&mut self, hdr: &WzCanvasHeader, data: &Data) -> BinResult<()> {
