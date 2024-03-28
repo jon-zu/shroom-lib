@@ -7,6 +7,8 @@ use thiserror::Error;
 pub enum NetError {
     #[error("IO")]
     IO(#[from] io::Error),
+    #[error("Websocket")]
+    Websocket(#[from] tokio_websockets::Error),
     #[error("Packet")]
     Packet(#[from] Error),
     #[error("string utf8 error")]

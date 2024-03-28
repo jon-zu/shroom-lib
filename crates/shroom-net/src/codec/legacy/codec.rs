@@ -128,6 +128,28 @@ impl<'a, const S: bool> Encoder<&'a [u8]> for LegacyEncoder<S> {
     }
 }
 
+/* 
+impl<'a, const S: bool> futures::Sink<&'a [u8]> for LegacyEncoder<S> {
+    type Error = NetError;
+    
+    fn poll_ready(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        <Encoder<&'a [u8]>>::poll_re
+    }
+    
+    fn start_send(self: std::pin::Pin<&mut Self>, item: &'a [u8]) -> Result<(), Self::Error> {
+        todo!()
+    }
+    
+    fn poll_flush(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        todo!()
+    }
+    
+    fn poll_close(self: std::pin::Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> std::task::Poll<Result<(), Self::Error>> {
+        todo!()
+    }
+
+}*/
+
 #[cfg(test)]
 mod tests {
     use super::*;

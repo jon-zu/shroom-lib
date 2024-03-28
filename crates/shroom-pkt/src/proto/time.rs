@@ -276,7 +276,7 @@ mod tests {
         test_enc_dec_all([
             ShroomExpirationTime::never(),
             ShroomExpirationTime(None),
-            ShroomExpirationTime::delay(chrono::Duration::seconds(1_000)),
+            ShroomExpirationTime::delay(chrono::Duration::try_seconds(1_000).unwrap()),
             ShroomExpirationTime::new(ShroomTime::now()),
         ]);
     }

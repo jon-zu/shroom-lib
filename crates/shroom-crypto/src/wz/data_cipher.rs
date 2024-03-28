@@ -20,6 +20,14 @@ pub struct WzDataCipher<const N: usize = DEFAULT_WZ_CIPHER_CACHE> {
     cached_key: [[u8; 16]; N],
 }
 
+impl<const N: usize> std::fmt::Debug for WzDataCipher<N> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WzDataCipher")
+            .finish_non_exhaustive()
+    }
+
+}
+
 impl<const N: usize> KeySizeUser for WzDataCipher<N> {
     type KeySize = U32;
 }

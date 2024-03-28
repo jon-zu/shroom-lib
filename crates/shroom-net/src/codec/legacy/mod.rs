@@ -5,6 +5,7 @@ use tokio::{
     io::AsyncWriteExt,
     net::{TcpStream, ToSocketAddrs},
 };
+use tokio_util::codec::{FramedRead, FramedWrite};
 
 use crate::{NetResult, ShroomStream};
 
@@ -109,7 +110,11 @@ impl<const S: bool, T> LegacyCodec<S, T> {
         T: ShroomTransport + Sync,
     {
         let hshake = Handshake::read_handshake_async(&mut trans).await?;
-        Ok(ShroomStream::new(trans, self.create_client_codec(&hshake)))
+        let (r, w) = trans.split();
+        let (enc, dec) = self.create_client_codec(&hshake);
+        let r = FramedRead::new(r, dec);
+        let w = FramedWrite::new(w, enc);
+        Ok(ShroomStream::new(w, r))
     }
 
     /// Creates a new server stream, which will send out the handshake
@@ -119,7 +124,11 @@ impl<const S: bool, T> LegacyCodec<S, T> {
     {
         let hshake = self.handshake_gen.generate_handshake();
         trans.write_all(&hshake.to_buf()).await?;
-        Ok(ShroomStream::new(trans, self.create_server_codec(&hshake)))
+        let (r, w) = trans.split();
+        let (enc, dec) = self.create_server_codec(&hshake);
+        let r = FramedRead::new(r, dec);
+        let w = FramedWrite::new(w, enc);
+        Ok(ShroomStream::new(w, r))
     }
 }
 
@@ -137,8 +146,8 @@ impl<const S: bool> LegacyCodec<S, TcpStream> {
 }
 
 impl<const S: bool, T: ShroomTransport + Sync> ShroomCodec for LegacyCodec<S, T> {
-    type Encoder = LegacyEncoder<S>;
-    type Decoder = LegacyDecoder<S>;
+    type Sink = FramedWrite<<Self::Transport as ShroomTransport>::WriteHalf, LegacyEncoder<S>>;
+    type Stream = FramedRead<<Self::Transport as ShroomTransport>::ReadHalf, LegacyDecoder<S>>;
     type Transport = T;
 
     fn create_client(
