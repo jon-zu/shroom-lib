@@ -6,4 +6,6 @@ members = [
 	"crates/shroom-pkt-derive",
 	"crates/shroom-crypto",
 	"crates/shroom-wz",
+	"crates/shroom-img",
+	"crates/img-extractor",
 ]

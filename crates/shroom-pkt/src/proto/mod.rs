@@ -1,6 +1,7 @@
 pub mod bits;
 pub mod conditional;
 pub mod r#enum;
+pub mod id;
 pub mod euclid;
 pub mod list;
 pub mod option;

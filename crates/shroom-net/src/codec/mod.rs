@@ -1,16 +1,17 @@
 #![allow(non_upper_case_globals)]
 
 pub mod legacy;
+pub mod websocket;
 
 use std::pin::Pin;
 
-use futures::Future;
+use futures::{Future, Stream};
 use shroom_pkt::Packet;
 use tokio::io::{AsyncRead, AsyncWrite};
 
 use crate::{NetError, NetResult, ShroomStream};
 
-use tokio_util::codec::{Decoder, Encoder};
+
 
 pub trait ShroomTransport: AsyncWrite + AsyncRead + Unpin + Send + 'static {
     type ReadHalf: AsyncRead + Unpin + Send + 'static;
@@ -125,8 +126,8 @@ impl ShroomTransport for turmoil::net::TcpStream {
 
 /// Codec trait
 pub trait ShroomCodec: Sized + Unpin + Send + Sync {
-    type Encoder: for<'a> Encoder<&'a [u8], Error = NetError> + Send + 'static;
-    type Decoder: Decoder<Item = Packet, Error = NetError> + Send + 'static;
+    type Sink: for<'a> futures::Sink<&'a [u8], Error = NetError> + Send + Unpin +  'static;
+    type Stream: Stream<Item = Result<Packet, NetError>> + Send + Unpin + 'static;
     type Transport: ShroomTransport;
 
     fn create_client(

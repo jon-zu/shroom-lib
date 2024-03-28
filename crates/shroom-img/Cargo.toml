@@ -1,0 +1,29 @@
+[package]
+name = "shroom-img"
+version = "0.1.0"
+edition = "2021"
+
+[dev-dependencies]
+quickcheck = "1"
+quickcheck_macros = "1"
+glob = "0.3"
+
+[dependencies]
+flate2 = { version = "1", features = ["zlib"] }
+aes = "0.8"
+anyhow = { version = "1" }
+binrw = "0.13"
+bytemuck = "1"
+encoding_rs = "0.8"
+indexmap = { version = "2", features = ["serde"] }
+image = "0.25"
+num_enum = "0.7"
+rgb = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+texpresso = "2"
+uuid = { version = "1", features = ["v4"] }
+shroom-crypto = { version = "0.1", path = "../shroom-crypto" }
+arcstr = { version = "1", features = ["serde"] }
+thiserror = "1"
+bit-struct = "0.3"

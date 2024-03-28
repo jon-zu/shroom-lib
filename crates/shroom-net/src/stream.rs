@@ -1,15 +1,12 @@
 use std::ops::Deref;
 
-use crate::{
-    codec::{ShroomCodec, ShroomTransport},
-    NetError, NetResult,
-};
+use crate::{codec::ShroomCodec, NetError, NetResult};
 
 use futures::{SinkExt, StreamExt};
 
 use shroom_pkt::Packet;
-use tokio_util::codec::{FramedRead, FramedWrite};
 
+/*
 /// Write half of a `ShroomConn` implements futures::Sink
 pub struct ShroomStreamWrite<C: ShroomCodec>(
     FramedWrite<<C::Transport as ShroomTransport>::WriteHalf, C::Encoder>,
@@ -110,6 +107,60 @@ impl<C: ShroomCodec> std::fmt::Debug for ShroomStream<C> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("ShroomStream").finish()
     }
+}*/
+
+//type ShroomStreamWriter<C> =  SplitSink<Frame>
+
+/// Shroom stream which allows to send and recv packets
+pub struct ShroomStream<C: ShroomCodec> {
+    r: C::Stream,
+    w: C::Sink,
+}
+
+impl<C: ShroomCodec, T: Deref<Target = [u8]>> futures::Sink<T> for ShroomStream<C> {
+    type Error = NetError;
+
+    fn poll_ready(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.w.poll_ready_unpin(cx)
+    }
+
+    fn start_send(mut self: std::pin::Pin<&mut Self>, item: T) -> Result<(), Self::Error> {
+        self.w.start_send_unpin(item.deref())
+    }
+
+    fn poll_flush(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.w.poll_flush_unpin(cx)
+    }
+
+    fn poll_close(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Result<(), Self::Error>> {
+        self.w.poll_close_unpin(cx)
+    }
+}
+
+impl<C: ShroomCodec> futures::Stream for ShroomStream<C> {
+    type Item = NetResult<Packet>;
+
+    fn poll_next(
+        mut self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        self.r.poll_next_unpin(cx)
+    }
+}
+
+impl<C: ShroomCodec> std::fmt::Debug for ShroomStream<C> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ShroomStream").finish()
+    }
 }
 
 impl<C> ShroomStream<C>
@@ -117,27 +168,26 @@ where
     C: ShroomCodec + Unpin,
 {
     /// Create a new session from the `io` and
-    pub fn new(io: C::Transport, (enc, dec): (C::Encoder, C::Decoder)) -> Self {
-        let (r, w) = io.split();
-        Self {
-            r: ShroomStreamRead(FramedRead::new(r, dec)),
-            w: ShroomStreamWrite(FramedWrite::new(w, enc)),
-        }
+    pub fn new(w: C::Sink, r: C::Stream) -> Self {
+        //let (r, w) = io.split();
+        Self { r, w }
     }
 
     /// Splits the stream into write and read half references
-    pub fn split(&mut self) -> (&mut ShroomStreamWrite<C>, &mut ShroomStreamRead<C>) {
+    pub fn split(&mut self) -> (&mut C::Sink, &mut C::Stream) {
         (&mut self.w, &mut self.r)
     }
 
     /// Splits the stream into owned write and read halves
-    pub fn into_split(self) -> (ShroomStreamWrite<C>, ShroomStreamRead<C>) {
+    pub fn into_split(self) -> (C::Sink, C::Stream) {
         (self.w, self.r)
     }
 
     /// Returns the remote address of the underlying socket
     pub async fn close(mut self) -> NetResult<()> {
-        self.w.0.close().await?;
+        //TODO close read half
+        self.w.close().await?;
+        //TODO self.w.0.close().await?;
         Ok(())
     }
 }
@@ -156,6 +206,7 @@ mod tests {
 
     use crate::codec::{
         legacy::{handshake_gen::BasicHandshakeGenerator, LegacyCodecNoShanda},
+        websocket::WebSocketCodec,
         ShroomCodec,
     };
 
@@ -183,6 +234,48 @@ mod tests {
                 SharedCryptoContext::default(),
                 BasicHandshakeGenerator::v83(),
             );
+            loop {
+                let socket = listener.accept().await.unwrap().0;
+                let mut sess = legacy.create_server(socket).await?;
+                // Echo
+                while let Ok(pkt) = sess.next().await.unwrap() {
+                    //dbg!(pkt.len());
+                    sess.send(pkt).await.unwrap();
+                }
+            }
+        });
+
+        sim.client("client", async move {
+            let socket = TcpStream::connect(("server", PORT)).await.unwrap();
+            let mut sess = legacy.create_client(socket).await.unwrap();
+            for (i, data) in ECHO_DATA.iter().enumerate() {
+                sess.send(Bytes::from_static(*data)).await.unwrap();
+                let pkt = sess.next().await.unwrap().unwrap();
+                assert_eq!(pkt.deref(), *data, "failed at: {i}");
+            }
+
+            Ok(())
+        });
+
+        sim.run().unwrap();
+
+        Ok(())
+    }
+
+    #[test]
+    fn echo_ws() -> anyhow::Result<()> {
+        const ECHO_DATA: [&'static [u8]; 5] = [&[], &[0xFF; 4096], &[], &[1, 2], &[0x0; 1024]];
+
+        let uri = http::Uri::from_static("ws://127.0.0.1");
+        let legacy = Arc::new(WebSocketCodec::<turmoil::net::TcpStream>::new(uri.clone()));
+
+        let mut sim = turmoil::Builder::new().build();
+
+        sim.host("server", || async move {
+            let listener = bind().await?;
+            let uri = http::Uri::from_static("ws://127.0.0.1");
+
+            let legacy = WebSocketCodec::<turmoil::net::TcpStream>::new(uri.clone());
             loop {
                 let socket = listener.accept().await.unwrap().0;
                 let mut sess = legacy.create_server(socket).await?;
