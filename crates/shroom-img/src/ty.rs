@@ -1,6 +1,6 @@
 use std::{
     io::{Read, Seek, Write},
-    ops::Neg,
+    ops::{Deref, DerefMut, Neg},
 };
 
 use binrw::{binrw, BinRead, BinWrite, BinWriterExt, VecArgs};
@@ -264,6 +264,20 @@ impl BinWrite for WzStr {
 /// Vector of multiple items of type `B`
 #[derive(Debug, Clone, PartialEq)]
 pub struct WzVec<B>(pub Vec<B>);
+
+impl<B> Deref for WzVec<B> {
+    type Target = Vec<B>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl<B> DerefMut for WzVec<B> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
+}
 
 impl<B> BinRead for WzVec<B>
 where

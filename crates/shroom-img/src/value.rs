@@ -153,7 +153,9 @@ impl Value {
             PropertyValue::F64(f) => Ok(Value::F64(f)),
             PropertyValue::String(s) => Ok(Value::String(s.0)),
             // TODO utilize subreader
-            PropertyValue::Object(_o) => Ok(Value::Object(Box::new(Object::from_reader(r)?))),
+            PropertyValue::Object(_o) | PropertyValue::Unknown(_o) => {
+                Ok(Value::Object(Box::new(Object::from_reader(r)?)))
+            }
             PropertyValue::Empty => Ok(Value::Null),
         }
     }

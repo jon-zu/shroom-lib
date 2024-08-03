@@ -9,12 +9,10 @@ use std::{
     fs::File,
     io::{BufRead, BufReader, Cursor, Read, Seek},
     path::Path,
-    sync::Arc,
 };
 
 use crate::{
     canvas::{WzCanvasHeader, WzCanvasLen, WzCanvasPropHeader},
-    crypto::ImgCrypto,
     data::{Data, OwnedReaderDataResolver, ReaderDataResolver},
     error::ImgError,
     sound::WzSound,

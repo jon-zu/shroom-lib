@@ -160,7 +160,7 @@ pub struct WzLinkData {
 }
 
 impl BinRead for WzLinkData {
-    type Args<'a> = WzContext<'a>;
+    type Args<'a> = &'a WzContext<'a>;
 
     fn read_options<R: std::io::Read + std::io::Seek>(
         reader: &mut R,
@@ -169,6 +169,7 @@ impl BinRead for WzLinkData {
     ) -> binrw::BinResult<Self> {
         let offset = u32::read_options(reader, endian, ())?;
         let old_pos = reader.stream_position()?;
+        let abs = args.
         reader.seek(io::SeekFrom::Start(args.0.offset_link(offset)))?;
 
         let ty = u8::read_options(reader, endian, ())?;

@@ -196,7 +196,7 @@ where
 mod tests {
     use bytes::Bytes;
     use futures::{SinkExt, StreamExt};
-    use shroom_crypto::SharedCryptoContext;
+    use shroom_crypto::{net::net_cipher::CRYPT_NONE, SharedCryptoContext};
     use std::{
         net::{IpAddr, Ipv4Addr},
         ops::Deref,
@@ -205,7 +205,7 @@ mod tests {
     use turmoil::net::{TcpListener, TcpStream};
 
     use crate::codec::{
-        legacy::{handshake_gen::BasicHandshakeGenerator, LegacyCodecNoShanda},
+        legacy::{handshake_gen::BasicHandshakeGenerator, LegacyCodec, LegacyCodecNoShanda},
         websocket::WebSocketCodec,
         ShroomCodec,
     };
@@ -231,6 +231,52 @@ mod tests {
             let listener = bind().await?;
 
             let legacy = LegacyCodecNoShanda::<turmoil::net::TcpStream>::new(
+                SharedCryptoContext::default(),
+                BasicHandshakeGenerator::v83(),
+            );
+            loop {
+                let socket = listener.accept().await.unwrap().0;
+                let mut sess = legacy.create_server(socket).await?;
+                // Echo
+                while let Ok(pkt) = sess.next().await.unwrap() {
+                    //dbg!(pkt.len());
+                    sess.send(pkt).await.unwrap();
+                }
+            }
+        });
+
+        sim.client("client", async move {
+            let socket = TcpStream::connect(("server", PORT)).await.unwrap();
+            let mut sess = legacy.create_client(socket).await.unwrap();
+            for (i, data) in ECHO_DATA.iter().enumerate() {
+                sess.send(Bytes::from_static(*data)).await.unwrap();
+                let pkt = sess.next().await.unwrap().unwrap();
+                assert_eq!(pkt.deref(), *data, "failed at: {i}");
+            }
+
+            Ok(())
+        });
+
+        sim.run().unwrap();
+
+        Ok(())
+    }
+
+    #[test]
+    fn echo_no_crypt() -> anyhow::Result<()> {
+        const ECHO_DATA: [&'static [u8]; 5] = [&[], &[0xFF; 4096], &[], &[1, 2], &[0x0; 1024]];
+
+        let legacy = Arc::new(LegacyCodec::<CRYPT_NONE, turmoil::net::TcpStream>::new(
+            SharedCryptoContext::default(),
+            BasicHandshakeGenerator::v83(),
+        ));
+
+        let mut sim = turmoil::Builder::new().build();
+
+        sim.host("server", || async move {
+            let listener = bind().await?;
+
+            let legacy = LegacyCodec::<CRYPT_NONE, turmoil::net::TcpStream>::new(
                 SharedCryptoContext::default(),
                 BasicHandshakeGenerator::v83(),
             );
