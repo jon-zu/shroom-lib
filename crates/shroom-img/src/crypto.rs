@@ -197,8 +197,8 @@ impl ImgCrypto {
     }
 
     pub fn decode_str8(&self, buf: &mut [u8]) {
+        xor_mask_str8(buf);
         if self.cipher.is_some() {
-            xor_mask_str8(buf);
             self.crypt(buf);
         }
     }

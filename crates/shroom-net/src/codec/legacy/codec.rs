@@ -18,13 +18,13 @@ fn check_packet_len(len: usize) -> NetResult<usize> {
     Ok(len)
 }
 
-pub struct LegacyDecoder<const S: bool> {
-    crypto: NetCipher<S>,
+pub struct LegacyDecoder<const C: u8> {
+    crypto: NetCipher<C>,
     len: Option<usize>,
 }
 
-impl<const S: bool> LegacyDecoder<S> {
-    pub fn new(crypto: NetCipher<S>) -> Self {
+impl<const C: u8> LegacyDecoder<C> {
+    pub fn new(crypto: NetCipher<C>) -> Self {
         Self { crypto, len: None }
     }
 
@@ -52,7 +52,7 @@ impl<const S: bool> LegacyDecoder<S> {
     }
 }
 
-impl<const S: bool> Decoder for LegacyDecoder<S> {
+impl<const C: u8> Decoder for LegacyDecoder<C> {
     type Item = Packet;
     type Error = NetError;
 
@@ -76,10 +76,10 @@ impl<const S: bool> Decoder for LegacyDecoder<S> {
     }
 }
 
-pub struct LegacyEncoder<const S: bool>(NetCipher<S>);
+pub struct LegacyEncoder<const C: u8>(NetCipher<C>);
 
-impl<const S: bool> LegacyEncoder<S> {
-    pub fn new(crypto: NetCipher<S>) -> Self {
+impl<const C: u8> LegacyEncoder<C> {
+    pub fn new(crypto: NetCipher<C>) -> Self {
         Self(crypto)
     }
 }
@@ -110,7 +110,7 @@ where
     }
 }
 
-impl<'a, const S: bool> Encoder<&'a [u8]> for LegacyEncoder<S> {
+impl<'a, const C: u8> Encoder<&'a [u8]> for LegacyEncoder<C> {
     type Error = NetError;
 
     fn encode(&mut self, item: &'a [u8], dst: &mut bytes::BytesMut) -> Result<(), Self::Error> {

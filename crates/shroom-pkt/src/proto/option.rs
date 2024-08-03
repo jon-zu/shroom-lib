@@ -44,18 +44,18 @@ pub struct RevShroomOptionDiscriminant<Opt>(Opt);
 
 impl<Opt: ShroomOptionDiscriminant> From<Opt> for RevShroomOptionDiscriminant<Opt> {
     fn from(value: Opt) -> Self {
-        Self(value.reverse())
+        Self(value)
     }
 }
 
 impl<Opt: ShroomOptionDiscriminant> EncodePacket for RevShroomOptionDiscriminant<Opt> {
     const SIZE_HINT: SizeHint = Opt::SIZE_HINT;
     fn encode_len(&self) -> usize {
-        self.0.reverse().encode_len()
+        self.0.encode_len()
     }
 
     fn encode<B: bytes::BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
-        self.0.reverse().encode(pw)
+        self.0.encode(pw)
     }
 }
 
@@ -179,5 +179,14 @@ mod tests {
             ShroomOptionRBool::from_opt(Some("abc".to_string())),
             ShroomOptionRBool::from_opt(None),
         ]);
+    }
+
+    #[test]
+    fn option8() {
+        let v = ShroomOptionR8::from_opt(Some(()));
+        assert_eq!(v.to_data().unwrap().as_ref(), &[0u8]);
+
+        let v: ShroomOptionR8<()> = None.into();
+        assert_eq!(v.to_data().unwrap().as_ref(), &[1u8]);
     }
 }

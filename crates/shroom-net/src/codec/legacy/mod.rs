@@ -1,5 +1,5 @@
 use futures::Future;
-use shroom_crypto::{net::net_cipher::NetCipher, SharedCryptoContext};
+use shroom_crypto::{net::net_cipher::{NetCipher, CRYPT_AES, CRYPT_ALL}, SharedCryptoContext};
 use shroom_pkt::shroom_enum_code;
 use tokio::{
     io::AsyncWriteExt,
@@ -40,16 +40,16 @@ shroom_enum_code!(
 );
 
 /// Legacy codec
-pub struct LegacyCodec<const SHANDA: bool, T = tokio::net::TcpStream> {
+pub struct LegacyCodec<const C: u8, T = tokio::net::TcpStream> {
     crypto_ctx: SharedCryptoContext,
     handshake_gen: BasicHandshakeGenerator,
     _marker: std::marker::PhantomData<T>,
 }
 
-pub type LegacyCodecShanda<T> = LegacyCodec<true, T>;
-pub type LegacyCodecNoShanda<T> = LegacyCodec<false, T>;
+pub type LegacyCodecShanda<T> = LegacyCodec<CRYPT_ALL, T>;
+pub type LegacyCodecNoShanda<T> = LegacyCodec<CRYPT_AES, T>;
 
-impl<const S: bool, T> Clone for LegacyCodec<S, T> {
+impl<const C: u8, T> Clone for LegacyCodec<C, T> {
     fn clone(&self) -> Self {
         Self {
             crypto_ctx: self.crypto_ctx.clone(),
@@ -59,7 +59,7 @@ impl<const S: bool, T> Clone for LegacyCodec<S, T> {
     }
 }
 
-impl<const S: bool, T> Default for LegacyCodec<S, T> {
+impl<const C: u8, T> Default for LegacyCodec<C, T> {
     fn default() -> Self {
         Self::new(
             SharedCryptoContext::default(),
@@ -68,7 +68,7 @@ impl<const S: bool, T> Default for LegacyCodec<S, T> {
     }
 }
 
-impl<const S: bool, T> LegacyCodec<S, T> {
+impl<const C: u8, T> LegacyCodec<C, T> {
     /// Creates a new legacy codedc from the crypto context and handshake generator
     pub fn new(crypto_ctx: SharedCryptoContext, handshake_gen: BasicHandshakeGenerator) -> Self {
         Self {
@@ -79,7 +79,7 @@ impl<const S: bool, T> LegacyCodec<S, T> {
     }
 
     /// Creates a new client codec from the given handshake
-    fn create_client_codec(&self, handshake: &Handshake) -> (LegacyEncoder<S>, LegacyDecoder<S>) {
+    fn create_client_codec(&self, handshake: &Handshake) -> (LegacyEncoder<C>, LegacyDecoder<C>) {
         let v = handshake.version;
         (
             LegacyEncoder::new(NetCipher::new(self.crypto_ctx.clone(), handshake.iv_enc, v)),
@@ -92,7 +92,7 @@ impl<const S: bool, T> LegacyCodec<S, T> {
     }
 
     /// Creates a new server codec from the given handshake
-    fn create_server_codec(&self, handshake: &Handshake) -> (LegacyEncoder<S>, LegacyDecoder<S>) {
+    fn create_server_codec(&self, handshake: &Handshake) -> (LegacyEncoder<C>, LegacyDecoder<C>) {
         let v = handshake.version;
         (
             LegacyEncoder::new(NetCipher::new(
@@ -132,7 +132,7 @@ impl<const S: bool, T> LegacyCodec<S, T> {
     }
 }
 
-impl<const S: bool> LegacyCodec<S, TcpStream> {
+impl<const C: u8> LegacyCodec<C, TcpStream> {
     /// Connects to a server with the given address
     pub async fn connect(&self, addr: impl ToSocketAddrs) -> NetResult<ShroomStream<Self>> {
         let stream = TcpStream::connect(addr).await?;
@@ -145,9 +145,9 @@ impl<const S: bool> LegacyCodec<S, TcpStream> {
     }
 }
 
-impl<const S: bool, T: ShroomTransport + Sync> ShroomCodec for LegacyCodec<S, T> {
-    type Sink = FramedWrite<<Self::Transport as ShroomTransport>::WriteHalf, LegacyEncoder<S>>;
-    type Stream = FramedRead<<Self::Transport as ShroomTransport>::ReadHalf, LegacyDecoder<S>>;
+impl<const C: u8, T: ShroomTransport + Sync> ShroomCodec for LegacyCodec<C, T> {
+    type Sink = FramedWrite<<Self::Transport as ShroomTransport>::WriteHalf, LegacyEncoder<C>>;
+    type Stream = FramedRead<<Self::Transport as ShroomTransport>::ReadHalf, LegacyDecoder<C>>;
     type Transport = T;
 
     fn create_client(

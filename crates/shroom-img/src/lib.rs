@@ -11,6 +11,7 @@ pub mod canvas;
 pub mod crypto;
 pub mod data;
 pub mod error;
+pub mod json;
 pub mod reader;
 pub mod sound;
 pub mod str_table;
@@ -162,6 +163,8 @@ pub enum PropertyValue {
     String(#[brw(args_raw(ctx))] ImgStr),
     #[brw(magic(9u8))]
     Object(ObjectHeader),
+    #[brw(magic(13u8))]
+    Unknown(ObjectHeader),
 }
 
 #[derive(Debug, Deserialize, Serialize, BinRead, BinWrite, Clone)]

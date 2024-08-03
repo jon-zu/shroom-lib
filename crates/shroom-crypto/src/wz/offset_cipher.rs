@@ -2,7 +2,7 @@ use std::num::Wrapping;
 
 use crate::ShroomVersion;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct WzOffsetCipher {
     offset_magic: u32,
     version_hash: u32,

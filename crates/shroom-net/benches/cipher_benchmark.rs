@@ -1,6 +1,6 @@
 use bytes::BytesMut;
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use shroom_crypto::{net::net_cipher::NetCipher, RoundKey, ShandaCipher, ShroomVersion};
+use shroom_crypto::{net::net_cipher::{NetCipher, CRYPT_AES, CRYPT_ALL}, RoundKey, ShandaCipher, ShroomVersion};
 use shroom_net::codec::legacy::codec::{LegacyDecoder, LegacyEncoder};
 use shroom_pkt::Packet;
 use tokio_util::codec::{Decoder, Encoder};
@@ -23,7 +23,7 @@ pub fn shanda_cipher_benchmark(c: &mut Criterion) {
 
 pub fn shroom_crypto_benchmark(c: &mut Criterion) {
     let mut bytes: [u8; 1024 * 16] = [0xFF; 1024 * 16];
-    let mut shroom_crypto = NetCipher::<true>::new(Default::default(), RoundKey::zero(), V83);
+    let mut shroom_crypto = NetCipher::<CRYPT_ALL>::new(Default::default(), RoundKey::zero(), V83);
 
     let mut group = c.benchmark_group("ShroomCrypto");
     group.throughput(Throughput::Bytes(bytes.len() as u64));
@@ -38,7 +38,7 @@ pub fn shroom_crypto_benchmark(c: &mut Criterion) {
 
 pub fn shroom_crypto_no_shanda_benchmark(c: &mut Criterion) {
     let mut bytes: [u8; 1024 * 16] = [0xFF; 1024 * 16];
-    let mut shroom_crypto = NetCipher::<false>::new(Default::default(), RoundKey::zero(), V83);
+    let mut shroom_crypto = NetCipher::<CRYPT_AES>::new(Default::default(), RoundKey::zero(), V83);
 
     let mut group = c.benchmark_group("ShroomCryptoNoShanda");
     group.throughput(Throughput::Bytes(bytes.len() as u64));
@@ -53,7 +53,7 @@ pub fn shroom_crypto_no_shanda_benchmark(c: &mut Criterion) {
 
 pub fn shroom_framed_no_shanda_benchmark(c: &mut Criterion) {
     static BYTES: &'static [u8; 1024 * 16] = &[0xFF; 1024 * 16];
-    let shroom_crypto = NetCipher::<false>::new(Default::default(), RoundKey::zero(), V83);
+    let shroom_crypto = NetCipher::<CRYPT_AES>::new(Default::default(), RoundKey::zero(), V83);
 
     let mut enc = LegacyEncoder::new(shroom_crypto.clone());
     let mut dec = LegacyDecoder::new(shroom_crypto.clone());
