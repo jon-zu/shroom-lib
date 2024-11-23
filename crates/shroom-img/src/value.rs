@@ -202,6 +202,21 @@ pub enum Object {
 }
 
 impl Object {
+
+    pub fn as_property(&self) -> Option<&Property> {
+        match self {
+            Object::Property(p) => Some(p),
+            _ => None,
+        }
+    }
+
+    pub fn as_canvas(&self) -> Option<&Canvas> {
+        match self {
+            Object::Canvas(c) => Some(c),
+            _ => None,
+        }
+    }
+
     pub fn to_json_value(&self) -> serde_json::Value {
         match self {
             Object::Property(p) => p.to_json_value(),

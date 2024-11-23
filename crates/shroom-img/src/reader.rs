@@ -12,13 +12,7 @@ use std::{
 };
 
 use crate::{
-    canvas::{WzCanvasHeader, WzCanvasLen, WzCanvasPropHeader},
-    data::{Data, OwnedReaderDataResolver, ReaderDataResolver},
-    error::ImgError,
-    sound::WzSound,
-    ty::WzInt,
-    util::BufReadExt,
-    Convex2, ImgContext, Link, PropertyValue, Vec2,
+    canvas::{WzCanvasHeader, WzCanvasLen, WzCanvasPropHeader}, crypto::ImgCrypto, data::{Data, OwnedReaderDataResolver, ReaderDataResolver}, error::ImgError, sound::WzSound, ty::WzInt, util::{chunked::ChunkedReader, BufReadExt}, Convex2, ImgContext, Link, PropertyValue, Vec2
 };
 use crate::{
     str_table::{OffsetStrTable, ReadStrCtx},
@@ -171,7 +165,11 @@ impl<R: ImgRead> ImgReader<R> {
         self.r.seek(std::io::SeekFrom::Start(offset))?;
         let (_, len) = self.read_canvas_len()?;
         let mut limited = (&mut self.r).take(len.data_len() as u64);
-        limited
+
+        let eu_crypto = ImgCrypto::europe();
+        let mut chunked = ChunkedReader::new(&mut limited, &eu_crypto);
+
+        chunked
             .decompress_flate_size_to(w, hdr.txt_data_size() as u64)
             .map_err(|err| ImgError::DecompressionFailed(offset, err).binrw_error(&mut self.r))?;
 

@@ -84,6 +84,7 @@ pub struct WzHeader {
 /// Directory with entries
 #[binrw]
 #[brw(little, import_raw(ctx: &WzContext))]
+#[derive(Debug)]
 pub struct WzDir(#[brw(args_raw(ctx))] pub WzVec<WzDirEntry>);
 
 impl WzDir {

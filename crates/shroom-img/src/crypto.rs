@@ -158,6 +158,16 @@ impl ImgCrypto {
         ))
     }
 
+    pub fn kms() -> Self {
+        Self::new(Some(
+            WzDataCipher::new_from_slices(
+                default_keys::wz::DEFAULT_WZ_AES_KEY,
+                &[0x45,0x50,0x33,0x01,0x45,0x50,0x33,0x01,0x45,0x50,0x33,0x01,0x45,0x50,0x33,0x01]
+            )
+            .unwrap(),
+        ))
+    }
+
     pub fn europe() -> Self {
         Self::new(Some(
             WzDataCipher::new_from_slices(
