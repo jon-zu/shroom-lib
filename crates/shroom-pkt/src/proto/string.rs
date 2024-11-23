@@ -33,7 +33,7 @@ impl<'de> DecodePacket<'de> for &'de str {
     }
 }
 
-impl<'a> EncodePacket for &'a str {
+impl EncodePacket for &str {
     fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
         pw.write_str(self)
     }

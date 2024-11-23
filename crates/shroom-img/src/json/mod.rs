@@ -130,11 +130,11 @@ impl Value {
             crate::value::Value::U16(v) => Self::Integer(*v as i64),
             crate::value::Value::I32(v) => Self::Integer(*v as i64),
             crate::value::Value::U32(v) => Self::Integer(*v as i64),
-            crate::value::Value::I64(v) => Self::Integer(*v as i64),
+            crate::value::Value::I64(v) => Self::Integer(*v),
             crate::value::Value::F32(v) => Self::Number(*v as f64),
-            crate::value::Value::F64(v) => Self::Number(*v as f64),
+            crate::value::Value::F64(v) => Self::Number(*v),
             crate::value::Value::String(v) => Self::String(v.clone()),
-            crate::value::Value::Object(v) => Self::from_img_value(ctx, &v),
+            crate::value::Value::Object(v) => Self::from_img_value(ctx, v),
         }
     }
     pub fn from_property(ctx: &mut ValueDecodeCtx, v: &crate::value::Property) -> Property {

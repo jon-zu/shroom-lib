@@ -123,7 +123,7 @@ pub trait WriteExt: Write {
         })
     }
 
-    /// Writes the buffer as compressed chunked out
+    // Writes the buffer as compressed chunked out
     // TODO: should this weird format even be supported
     // essentially It is 2 chunks
     // 1st 2 byte with zlib hdr, 2nd with the whole compressed chunk
@@ -167,7 +167,7 @@ where
     }
 }
 
-impl<'a, R> Read for SubReader<'a, R>
+impl<R> Read for SubReader<'_, R>
 where
     R: Read,
 {
@@ -176,7 +176,7 @@ where
     }
 }
 
-impl<'a, R> BufRead for SubReader<'a, R>
+impl<R> BufRead for SubReader<'_, R>
 where
     R: BufRead,
 {
@@ -190,7 +190,7 @@ where
 }
 
 // TODO this MUST be tested
-impl<'a, R> Seek for SubReader<'a, R>
+impl<R> Seek for SubReader<'_, R>
 where
     R: Seek,
 {

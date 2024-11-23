@@ -50,7 +50,7 @@ impl SCrc32 {
     fn update_slice16(&self, mut crc: u32, data: &[u8]) -> u32 {
         //TODO use slice into [u8; 16]
         let mut chunks = data.chunks_exact(16);
-        while let Some(chunk) = chunks.next() {
+        for chunk in chunks.by_ref() {
             crc = self.update_inner(crc, chunk);
         }
         let rem = chunks.remainder();
@@ -93,7 +93,7 @@ impl Default for GameDigest<'_> {
     }
 }
 
-impl<'a> GameDigest<'a> {
+impl GameDigest<'_> {
     pub fn new() -> Self {
         Self {
             inner: CRC32_GAME.digest(),

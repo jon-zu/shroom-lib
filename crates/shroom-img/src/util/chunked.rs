@@ -132,7 +132,7 @@ impl<'a, R: Read> ChunkedReader<'a, R> {
     }
 }
 
-impl<'a, R: Read> Read for ChunkedReader<'a, R> {
+impl<R: Read> Read for ChunkedReader<'_, R> {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         let n = self.refill_buf()?.min(buf.len());
         let ix = self.ix;
@@ -142,7 +142,7 @@ impl<'a, R: Read> Read for ChunkedReader<'a, R> {
     }
 }
 
-impl<'a, R: Read> BufRead for ChunkedReader<'a, R> {
+impl<R: Read> BufRead for ChunkedReader<'_, R> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         let n = self.refill_buf()?;
         let ix = self.ix;
@@ -154,7 +154,6 @@ impl<'a, R: Read> BufRead for ChunkedReader<'a, R> {
         self.ix += amt;
     }
 }
-
 
 #[cfg(test)]
 mod tests {

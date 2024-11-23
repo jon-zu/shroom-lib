@@ -11,7 +11,7 @@ pub struct PacketAnalyzer<'a> {
 
 pub struct HexString<'a, const SPACE: bool>(&'a [u8]);
 
-impl<'a, const SPACE: bool> std::fmt::Display for HexString<'a, SPACE> {
+impl<const SPACE: bool> std::fmt::Display for HexString<'_, SPACE> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let mut first = true;
         for byte in self.0 {
@@ -25,7 +25,7 @@ impl<'a, const SPACE: bool> std::fmt::Display for HexString<'a, SPACE> {
     }
 }
 
-impl<'a, const SPACE: bool> HexString<'a, SPACE> {
+impl<const SPACE: bool> HexString<'_, SPACE> {
     const fn size_per_byte() -> usize {
         if SPACE {
             3
@@ -104,7 +104,7 @@ impl<'a> PacketAnalyzer<'a> {
     }
 }
 
-impl<'a> Display for PacketAnalyzer<'a> {
+impl Display for PacketAnalyzer<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         // Write the hex string
         let hx = self.hex_string();

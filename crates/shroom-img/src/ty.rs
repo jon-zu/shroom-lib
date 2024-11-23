@@ -121,7 +121,7 @@ pub struct WzF32(
 
 pub struct WzStrRef8<'a>(pub &'a [u8]);
 
-impl<'s> BinWrite for WzStrRef8<'s> {
+impl BinWrite for WzStrRef8<'_> {
     type Args<'a> = &'a ImgCrypto;
 
     fn write_options<W: Write + Seek>(
@@ -145,7 +145,7 @@ impl<'s> BinWrite for WzStrRef8<'s> {
 
 pub struct WzStrRef16<'a>(pub &'a [u16]);
 
-impl<'s> BinWrite for WzStrRef16<'s> {
+impl BinWrite for WzStrRef16<'_> {
     type Args<'a> = &'a ImgCrypto;
 
     fn write_options<W: Write + Seek>(
@@ -170,7 +170,7 @@ impl<'s> BinWrite for WzStrRef16<'s> {
 /// String reference for faster writing
 pub struct WzStrRef<'a>(pub &'a str);
 
-impl<'s> BinWrite for WzStrRef<'s> {
+impl BinWrite for WzStrRef<'_> {
     type Args<'a> = &'a ImgCrypto;
 
     fn write_options<W: Write + Seek>(

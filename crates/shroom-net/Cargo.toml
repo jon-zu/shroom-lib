@@ -15,7 +15,7 @@ criterion = "0.5"
 anyhow = "1"
 arrayvec = "0.7"
 bytes = "1"
-thiserror = "1"
+thiserror = "2"
 rand = "0.8"
 futures = "0.3"
 num_enum = "0.7"
@@ -23,5 +23,5 @@ tokio = { version = "1", features = ["rt", "macros", "io-util", "net"] }
 tokio-util = { version = "0.7", features = ["codec"] }
 shroom-pkt = { version = "0.1", path = "../shroom-pkt" }
 shroom-crypto = { version = "0.1.0", path = "../shroom-crypto" }
-tokio-websockets = { version = "0.7", features = ["client", "server", "rand", "ring"] }
+tokio-websockets = { version = "0.10", features = ["client", "server", "rand", "ring"] }
 http = "1.1.0"

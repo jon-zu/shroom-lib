@@ -99,7 +99,7 @@ pub struct IgHasher<'ctx> {
     ctx: &'ctx IgContext,
 }
 
-impl<'ctx> IgHasher<'ctx> {
+impl IgHasher<'_> {
     pub fn update(&mut self, data: &[u8]) {
         self.state = data
             .iter()
@@ -111,7 +111,7 @@ impl<'ctx> IgHasher<'ctx> {
     }
 }
 
-impl<'ctx> Hasher for IgHasher<'ctx> {
+impl Hasher for IgHasher<'_> {
     fn write(&mut self, bytes: &[u8]) {
         self.update(bytes);
     }
