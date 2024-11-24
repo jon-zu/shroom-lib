@@ -239,7 +239,6 @@ mod tests {
                 let mut sess = legacy.create_server(socket).await?;
                 // Echo
                 while let Ok(pkt) = sess.next().await.unwrap() {
-                    //dbg!(pkt.len());
                     sess.send(pkt).await.unwrap();
                 }
             }
@@ -285,7 +284,6 @@ mod tests {
                 let mut sess = legacy.create_server(socket).await?;
                 // Echo
                 while let Ok(pkt) = sess.next().await.unwrap() {
-                    //dbg!(pkt.len());
                     sess.send(pkt).await.unwrap();
                 }
             }
@@ -327,7 +325,6 @@ mod tests {
                 let mut sess = legacy.create_server(socket).await?;
                 // Echo
                 while let Ok(pkt) = sess.next().await.unwrap() {
-                    //dbg!(pkt.len());
                     sess.send(pkt).await.unwrap();
                 }
             }
