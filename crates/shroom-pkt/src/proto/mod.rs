@@ -69,19 +69,22 @@ macro_rules! packet_try_wrap {
         impl<$($gen_ty: $crate::EncodePacket),*> $crate::EncodePacket for $name<$($gen_ty,)*> {
             const SIZE_HINT: $crate::SizeHint = <$into_ty>::SIZE_HINT;
 
+            #[allow(clippy::clone_on_copy)]
             fn encode_len(&self) -> usize {
                 <$into_ty>::from(self.clone()).encode_len()
             }
 
+            #[allow(clippy::clone_on_copy)]
             fn encode<B: bytes::BufMut>(&self, pw: &mut $crate::PacketWriter<B>) -> $crate::PacketResult<()> {
                 <$into_ty>::from(self.clone()).encode(pw)
             }
         }
 
         impl<'de, $($gen_ty: $crate::DecodePacket<'de>),*> $crate::DecodePacket<'de> for $name<$($gen_ty,)*> {
+            // False positive in case try_into returns a NetError
+            // elsewise we want the implicit conversio
+            #[allow(clippy::needless_question_mark)]
             fn decode(pr: &mut $crate::PacketReader<'de>) -> $crate::PacketResult<Self> {
-                // False positive in case try_into returns a NetError
-                // elsewise we want the implicit conversio
                 #[allow(clippy::needless_question_mark)]
                 Ok(<$try_from_ty>::decode(pr)?.try_into()?)
             }
