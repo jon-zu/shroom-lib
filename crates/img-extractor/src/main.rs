@@ -8,9 +8,9 @@ use std::{
 use glob::glob;
 use shroom_img::{crypto::ImgCrypto, reader::ImgReader, value::Object};
 
-fn do_dump(path: impl AsRef<Path>, base: impl AsRef<Path>, crypto: &Arc<ImgCrypto>, out: &PathBuf) -> anyhow::Result<()> {
+fn do_dump(path: impl AsRef<Path>, base: impl AsRef<Path>, crypto: &Arc<ImgCrypto>, out: &Path) -> anyhow::Result<()> {
     let path = path.as_ref();
-    let file = BufReader::new(File::open(&path)?);
+    let file = BufReader::new(File::open(path)?);
     let mut img = ImgReader::new(file, crypto.clone().into());
     let obj = Object::from_reader(&mut img)?;
 

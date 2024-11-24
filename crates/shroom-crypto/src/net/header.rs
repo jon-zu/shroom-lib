@@ -63,7 +63,7 @@ pub fn decode_header_no_crypt(
     hdr: PacketHeader,
 ) ->u16 {
     let v = HiLo32::from_le_bytes(hdr);
-    v.high as u16
+    v.high
 }
 
 pub fn encode_header(key: RoundKey, length: u16, ver: u16) -> PacketHeader {

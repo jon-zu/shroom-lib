@@ -13,20 +13,27 @@ mod enum_impl;
 #[derive(FromMeta, Debug)]
 struct Cond {
     pub field: syn::Ident,
-    pub cond: syn::Path,
+    pub check: Option<syn::Path>,
 }
 
 impl Cond {
+    fn conf_fn(&self) -> TokenStream {
+        self.check.as_ref().map_or_else(
+            || quote::quote!(shroom_pkt::default_check),
+            |v| quote::quote!(#v),
+        )
+    }
+
     /// Expr to access the field via self
     pub fn self_expr(&self) -> TokenStream {
-        let cond_fn = &self.cond;
+        let cond_fn = self.conf_fn();
         let field = &self.field;
         quote::quote! ( #cond_fn( &self.#field ) )
     }
 
     /// Expr to access the field directely
     pub fn id_expr(&self) -> TokenStream {
-        let cond_fn = &self.cond;
+        let cond_fn = self.conf_fn();
         let field = &self.field;
         quote::quote! ( #cond_fn( &#field ) )
     }
@@ -46,6 +53,8 @@ struct PacketField {
     either: Option<Cond>,
     // Size for `DecodePacketSized` + `EncodePacketSized`
     size: Option<Ident>,
+    // Turn this into a cond option
+    cond_option: Option<syn::Path>,
 }
 
 impl PacketField {
@@ -56,6 +65,12 @@ impl PacketField {
 
     /// Get the encode len expr for this field
     pub fn encode_len_expr(&self, field_name: &TokenStream) -> TokenStream {
+        if let Some(cond_opt) = self.cond_option.as_ref() {
+            return quote::quote! ( 
+                shroom_pkt::ShroomOption::<_, #cond_opt>::encode_len_opt(&self.#field_name) 
+            );
+        }
+
         if let Some(cond) = self.get_cond() {
             let cond = cond.self_expr();
             quote::quote! ( shroom_pkt::PacketConditional::encode_len_cond(&self.#field_name, #cond) )
@@ -68,7 +83,7 @@ impl PacketField {
     pub fn size_hint_expr(&self) -> TokenStream {
         let ty = &self.ty;
         // Conditional has no SizeHint
-        if self.get_cond().is_some() {
+        if self.get_cond().is_some() || self.cond_option.is_some() {
             quote::quote!(shroom_pkt::SizeHint::NONE)
         } else {
             quote::quote!( <#ty>::SIZE_HINT )
@@ -77,6 +92,12 @@ impl PacketField {
 
     /// Get the encode expression for this field
     pub fn encode_expr(&self, field_name: &TokenStream) -> TokenStream {
+        if let Some(cond_opt) = self.cond_option.as_ref() {
+            return quote::quote!(
+                shroom_pkt::ShroomOption::<_, #cond_opt>::encode_opt::<B>(&self.#field_name, pw)
+            );
+        }
+
         if let Some(cond) = self.get_cond() {
             let cond = cond.self_expr();
             quote::quote! ( shroom_pkt::PacketConditional::encode_cond(&self.#field_name, #cond, pw) )
@@ -87,6 +108,12 @@ impl PacketField {
 
     /// Get the decode expr for this field
     pub fn decode_expr(&self, var_ident: &Ident) -> TokenStream {
+        if let Some(cond_opt) = self.cond_option.as_ref() {
+            return quote::quote!(
+                let #var_ident = shroom_pkt::ShroomOption::<_, #cond_opt>::decode(pr).map(|o| o.opt)
+            );
+        }
+
         let ty = &self.ty;
         // Generate the condition check and call the decoder
         if let Some(cond) = self.get_cond() {

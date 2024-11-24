@@ -4,8 +4,9 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-anyhow = "1.0.86"
-binrw = "0.13"
-bytemuck = "1.16.0"
+anyhow = "1.0.93"
+binrw = "0.14"
+bytemuck = "1.20.0"
+image = "0.25.5"
 shroom-crypto = { version = "0.1.0", path = "../shroom-crypto" }
 shroom-img = { version = "0.1.0", path = "../shroom-img" }

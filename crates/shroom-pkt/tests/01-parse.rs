@@ -47,7 +47,7 @@ fn check_name_even(name: &str) -> bool {
 #[derive(ShroomPacket, Debug, PartialEq, Eq)]
 pub struct Packet4<'a, T> {
     name: &'a str,
-    #[pkt(check(field = "name", cond = "check_name_even"))]
+    #[pkt(check(field = "name", check = "check_name_even"))]
     bitmask: CondOption<u16>,
     val: T,
 }
@@ -59,9 +59,10 @@ fn check_n_even(n: &u32) -> bool {
 #[derive(ShroomPacket, Debug, PartialEq, Eq)]
 pub struct Packet5 {
     n: u32,
-    #[pkt(either(field = "n", cond = "check_n_even"))]
+    #[pkt(either(field = "n", check = "check_n_even"))]
     either: CondEither<String, bool>,
 }
+
 
 #[derive(ShroomPacket, Debug, PartialEq, Eq)]
 pub struct Packet6 {
@@ -75,6 +76,19 @@ pub struct Packet7(pub u32);
 
 #[derive(ShroomPacket, Debug, PartialEq, Eq)]
 pub struct Packet8(pub u32, pub u8);
+
+#[derive(ShroomPacket, Debug, PartialEq, Eq)]
+pub struct Packet9 {
+    check: bool,
+    #[pkt(either(field = "check"))]
+    either: CondEither<String, bool>,
+}
+
+#[derive(ShroomPacket, Debug, PartialEq, Eq)]
+pub struct Packet10 {
+    #[pkt(cond_option = "u8")]
+    either: Option<u32>
+}
 
 #[derive(ShroomPacketEnum, PartialEq, PartialOrd, Debug, Clone, Copy)]
 #[repr(u8)]
@@ -90,6 +104,13 @@ pub enum Enum2 {
     B(u8) = 2,
     C((u32, u8)) = 3,
     D(u8, f32) = 4,
+}
+
+#[derive(ShroomPacketEnum, PartialEq, PartialOrd, Debug, Clone, Copy)]
+#[repr(u32)]
+pub enum Enum3 {
+    A = 1,
+    B = 2
 }
 
 fn main() {
@@ -140,4 +161,22 @@ fn main() {
     test_enc_dec(Enum2::B(11));
     test_enc_dec(Enum2::C((2, 3)));
     test_enc_dec(Enum2::D(2, 5.0));
+
+    test_enc_dec_borrow!(Packet9 {
+        check: false,
+        either: CondEither(Either::Right(false))
+    });
+
+    test_enc_dec_borrow!(Packet9 {
+        check: true,
+        either: CondEither(Either::Left("ABC".to_string()))
+    });
+
+    test_enc_dec_borrow!(Packet10 {
+        either: Some(11)
+    });
+
+    test_enc_dec_borrow!(Packet10 {
+        either: None
+    });
 }

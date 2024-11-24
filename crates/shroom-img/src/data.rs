@@ -53,7 +53,7 @@ impl<'r, R> ReaderDataResolver<'r, R> {
     }
 }
 
-impl<'r, R: ImgRead> DataResolver for ReaderDataResolver<'r, R> {
+impl<R: ImgRead> DataResolver for ReaderDataResolver<'_, R> {
     fn resolve_canvas_data(&mut self, hdr: &WzCanvasHeader, offset: u64) -> BinResult<&[u8]> {
         self.buf.clear();
         self.reader.read_canvas_data(offset, hdr, &mut self.buf)?;

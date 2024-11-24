@@ -32,3 +32,10 @@ pub use proto::*;
 pub use opcode::{HasOpCode, ShroomOpCode};
 pub use pkt::Packet;
 pub use shroom_pkt_derive::*;
+
+
+#[doc(hidden)]
+/// Default check function for the conditional proc macro
+pub fn default_check(val: &bool) -> bool {
+    *val
+}

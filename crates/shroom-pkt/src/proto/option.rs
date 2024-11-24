@@ -97,6 +97,36 @@ impl<T, D> ShroomOption<T, D> {
             _t: PhantomData,
         }
     }
+
+    pub fn encode_opt<B: bytes::BufMut>(
+        opt: &Option<T>,
+        pw: &mut PacketWriter<B>,
+    ) -> PacketResult<()>
+    where
+        D: ShroomOptionDiscriminant,
+        T: EncodePacket,
+    {
+        match opt.as_ref() {
+            Some(v) => {
+                D::SOME_VALUE.encode(pw)?;
+                v.encode(pw)
+            }
+            None => D::NONE_VALUE.encode(pw),
+        }
+    }
+
+    pub fn encode_len_opt(
+        opt: &Option<T>
+    ) -> usize
+    where
+        D: ShroomOptionDiscriminant,
+        T: EncodePacket,
+    {
+        match opt.as_ref() {
+            Some(v) => D::SOME_VALUE.encode_len() + v.encode_len(),
+            None => D::NONE_VALUE.encode_len(),
+        }
+    }
 }
 
 impl<T, Opt> From<Option<T>> for ShroomOption<T, Opt> {

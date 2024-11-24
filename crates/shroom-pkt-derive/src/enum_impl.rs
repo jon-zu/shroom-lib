@@ -45,19 +45,23 @@ impl ShroomEnumVariant {
     fn gen_encode_len(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
 
+        if self.fields.is_empty() {
+            return quote::quote! { Self::#ident => 0, };
+        }
+
         let fields = self.fields.iter().enumerate().map(|(i, _)| {
             let ident = format_ident!("_{i}");
             quote::quote! { #ident }
         });
 
-        let field_plen = self.fields.iter().enumerate().map(|(i, _)| {
+        let fields_encode_len = self.fields.iter().enumerate().map(|(i, _)| {
             let ident = format_ident!("_{i}");
             quote::quote! { #ident.encode_len() }
         });
 
         quote::quote! {
             Self::#ident(#(#fields,)*) => {
-                #(#field_plen + )* 0
+                #(#fields_encode_len + )* 0
             }
         }
     }
@@ -68,6 +72,10 @@ impl ShroomEnumVariant {
             .discriminant
             .as_ref()
             .expect("Must contain discriminant");
+
+        if self.fields.is_empty() {
+            return quote::quote! { #discriminant => Self::#ident, };
+        }
 
         let fields = self.fields.iter().enumerate().map(|(i, _)| {
             let ident = format_ident!("_{i}");
@@ -90,6 +98,11 @@ impl ShroomEnumVariant {
 
     fn gen_encode(&self) -> proc_macro2::TokenStream {
         let ident = &self.ident;
+
+        if self.fields.is_empty() {
+            return quote::quote! { Self::#ident => (), };
+        }
+
 
         let fields = self.fields.iter().enumerate().map(|(i, _)| {
             let ident = format_ident!("_{i}");
@@ -114,11 +127,11 @@ impl ToTokens for ShroomPacketEnum {
         let repr = ReprTy::from_attributes(&self.attrs).expect("Must contain repr");
 
         let ident = self.ident.clone();
-        let enum_ = self.data.as_ref().take_enum().expect("Must be enum");
+        let r#enum = self.data.as_ref().take_enum().expect("Must be enum");
 
-        let enc_fields = enum_.iter().map(|v| v.gen_encode());
-        let len_fields = enum_.iter().map(|v| v.gen_encode_len());
-        let dec_fields = enum_.iter().map(|v| v.gen_decode());
+        let enc_fields = r#enum.iter().map(|v| v.gen_encode());
+        let len_fields = r#enum.iter().map(|v| v.gen_encode_len());
+        let dec_fields = r#enum.iter().map(|v| v.gen_decode());
         let repr_ty = &repr.0;
         tokens.extend(quote::quote!(
             impl shroom_pkt::EncodePacket for #ident {

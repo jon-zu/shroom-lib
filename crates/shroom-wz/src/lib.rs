@@ -84,6 +84,7 @@ pub struct WzHeader {
 /// Directory with entries
 #[binrw]
 #[brw(little, import_raw(ctx: &WzContext))]
+#[derive(Debug)]
 pub struct WzDir(#[brw(args_raw(ctx))] pub WzVec<WzDirEntry>);
 
 impl WzDir {
@@ -91,8 +92,8 @@ impl WzDir {
         self.0.iter().find(|e| match e {
             WzDirEntry::Null(_) => false,
             WzDirEntry::Link(_) => false, // TODO: should this be handled
-            WzDirEntry::Dir(dir) => &dir.name.0 == name,
-            WzDirEntry::Img(img) => &img.name.0 == name,
+            WzDirEntry::Dir(dir) => dir.name.0 == name,
+            WzDirEntry::Img(img) => img.name.0 == name,
         })
     }
 
@@ -100,8 +101,8 @@ impl WzDir {
         self.0.iter_mut().find(|e| match e {
             WzDirEntry::Null(_) => false,
             WzDirEntry::Link(_) => false, // TODO: should this be handled
-            WzDirEntry::Dir(dir) => &dir.name.0 == name,
-            WzDirEntry::Img(img) => &img.name.0 == name,
+            WzDirEntry::Dir(dir) => dir.name.0 == name,
+            WzDirEntry::Img(img) => img.name.0 == name,
         })
     }
 }

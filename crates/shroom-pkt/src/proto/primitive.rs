@@ -154,7 +154,7 @@ impl<D: EncodePacket> EncodePacket for Option<D> {
 
 
 pub struct ShroomMultiLineStr<'a>(pub &'a str);
-impl<'a> EncodePacket for ShroomMultiLineStr<'a> {
+impl EncodePacket for ShroomMultiLineStr<'_> {
     const SIZE_HINT: SizeHint = SizeHint::NONE;
 
     fn encode<B: BufMut>(&self, pw: &mut PacketWriter<B>) -> PacketResult<()> {
