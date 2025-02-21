@@ -2,6 +2,8 @@ pub mod list;
 pub mod reader;
 pub mod writer;
 
+pub use shroom_crypto::ShroomVersion;
+
 use std::{
     io::{self, Cursor, Read, Seek, Write},
     ops::Deref,
@@ -11,9 +13,7 @@ use std::{
 use binrw::{BinRead, BinResult, BinWrite, NullString, binrw};
 
 use list::{ArchiveImgList, ListImgSet};
-use shroom_crypto::{
-    ShroomVersion, default_keys::wz::DEFAULT_WZ_OFFSET_MAGIC, wz::offset_cipher::WzOffsetCipher,
-};
+use shroom_crypto::{default_keys::wz::DEFAULT_WZ_OFFSET_MAGIC, wz::offset_cipher::WzOffsetCipher};
 use shroom_img::{
     crypto::ImgCrypto,
     ty::{WzInt, WzStr, WzVec},
@@ -22,8 +22,6 @@ use shroom_img::{
 pub fn try_detect_versions<R: Read>(mut r: R) -> BinResult<Vec<ShroomVersion>> {
     let mut buf = [0; 128];
     r.read_exact(&mut buf)?;
-
-    
 
     let mut r = Cursor::new(&buf);
     let hdr = WzHeader::read(&mut r)?;
@@ -80,6 +78,10 @@ impl WzContext {
             .to_list()
             .write_le_args(&mut writer, &self.img)?;
         Ok(())
+    }
+
+    pub fn img_crypto(&self) -> Arc<ImgCrypto> {
+        self.img.clone()
     }
 }
 
