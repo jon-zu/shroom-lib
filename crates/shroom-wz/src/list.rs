@@ -76,6 +76,12 @@ impl BinWrite for ArchiveImgList {
 #[derive(Debug)]
 pub struct ListImgSet(HashSet<String>);
 
+impl Default for ListImgSet {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl ListImgSet {
     pub fn new() -> Self {
         Self(HashSet::new())

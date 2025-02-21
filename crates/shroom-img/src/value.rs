@@ -16,6 +16,12 @@ use crate::{
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Property(pub indexmap::IndexMap<ArcStr, Value>);
 
+impl Default for Property {
+    fn default() -> Self {
+        Self(IndexMap::new())
+    }
+}
+
 impl Property {
     pub fn new() -> Self {
         Self(IndexMap::new())
@@ -26,7 +32,7 @@ impl Property {
             && self
                 .0
                 .iter()
-                .all(|(k, v)| other.0.get(k).map_or(false, |o| v.check_equal(o)))
+                .all(|(k, v)| other.0.get(k).is_some_and(|o| v.check_equal(o)))
     }
 
     pub fn insert(&mut self, key: &str, value: Value) {
@@ -104,7 +110,7 @@ pub struct Sound {
 impl Sound {
     fn check_equal(&self, other: &Sound) -> bool {
         //TODO more
-        return self.hdr.size == other.hdr.size && self.hdr.len_ms == other.hdr.len_ms;
+        self.hdr.size == other.hdr.size && self.hdr.len_ms == other.hdr.len_ms
     }
 }
 
@@ -177,8 +183,6 @@ impl From<f64> for Value {
         Value::F64(f)
     }
 }
-
-
 
 impl Value {
     pub fn as_object(&self) -> Option<&Object> {

@@ -77,6 +77,12 @@ impl XorMaskAble for u16 {
     }
 }
 
+impl<T: XorMaskAble> Default for XorMask<T> {
+    fn default() -> Self {
+        Self(T::INITIAL)
+    }
+}
+
 impl<T: XorMaskAble> XorMask<T> {
     pub fn new() -> Self {
         Self(T::INITIAL)
@@ -158,7 +164,7 @@ impl ImgCrypto {
     pub fn chunked_cipher(&self) -> Option<&WzDataCipher> {
         self.chunked_cipher
             .as_ref()
-            .or_else(|| self.cipher.as_ref())
+            .or( self.cipher.as_ref())
     }
 
     pub fn crypt_stream(&self) -> Option<WzDataCryptStream<'_>> {

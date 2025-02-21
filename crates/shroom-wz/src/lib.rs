@@ -25,8 +25,6 @@ pub fn try_detect_versions<R: Read>(mut r: R) -> BinResult<Vec<ShroomVersion>> {
 
     let mut r = Cursor::new(&buf);
     let hdr = WzHeader::read(&mut r)?;
-
-    let all = ShroomVersion::wz_detect_version(hdr.version_hash);
     Ok(ShroomVersion::wz_detect_version(hdr.version_hash).collect())
 }
 
@@ -49,10 +47,10 @@ impl WzContext {
     pub fn new(ver: impl Into<ShroomVersion>, img: Arc<ImgCrypto>) -> Self {
         let ver = ver.into();
         Self {
-            img: img,
+            img,
             wz: WzOffsetCipher::new(ver, DEFAULT_WZ_OFFSET_MAGIC),
             chunked_set: ListImgSet::new(),
-            ver: ver,
+            ver,
         }
     }
     pub fn global(ver: impl Into<ShroomVersion>) -> Self {
