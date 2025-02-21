@@ -63,7 +63,7 @@ pub trait PeekExt: BufReadExt + Seek {
 
 impl<T: BufRead + Seek> PeekExt for T {}
 
-pub trait BufReadExt: BufRead {
+pub(crate) trait BufReadExt: BufRead {
     /// Calculates the checksum of the next n bytes
     fn wz_checksum(&mut self, n: u64) -> io::Result<i32> {
         self.bytes()
@@ -98,7 +98,7 @@ pub trait BufReadExt: BufRead {
 
 impl<T: BufRead> BufReadExt for T {}
 
-pub trait WriteExt: Write {
+pub(crate) trait WriteExt: Write {
     /// Writes a u32 in little endian order
     fn write_u32_le(&mut self, n: u32) -> io::Result<()> {
         self.write_all(n.to_le_bytes().as_slice())

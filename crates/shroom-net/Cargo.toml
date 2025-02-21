@@ -24,4 +24,4 @@ tokio-util = { version = "0.7", features = ["codec"] }
 shroom-pkt = { version = "0.2", path = "../shroom-pkt" }
 shroom-crypto = { version = "0.1.0", path = "../shroom-crypto" }
 tokio-websockets = { version = "0.10", features = ["client", "server", "rand", "ring"] }
-http = "1.1.0"
+http = "1.2.0"

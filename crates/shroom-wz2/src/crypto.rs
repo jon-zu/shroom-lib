@@ -197,7 +197,7 @@ impl WzCrypto {
         xor_mask_str8(buf);
     }
 
-    pub fn read_str8(&self, mut r: impl io::Read, len: usize) -> anyhow::Result<String> {
+    pub fn read_str8(&self, mut r: impl io::Read, len: usize) -> io::Result<String> {
         const CHUNK_LEN: usize = 16;
         let mut res = String::with_capacity(len);
         let chunks = len / CHUNK_LEN;

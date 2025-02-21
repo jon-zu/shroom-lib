@@ -1,4 +1,4 @@
-use std::{char::DecodeUtf16Error, io, num::Wrapping};
+use std::{io, num::Wrapping};
 
 use aes::cipher::{inout::InOutBuf, KeyIvInit};
 use image::EncodableLayout;
@@ -8,29 +8,12 @@ use shroom_crypto::{
 };
 
 use crate::util::array_chunks::as_chunks;
-
-fn xor_mask_str8(data: &mut [u8]) {
-    let mut mask = Wrapping(0xAAu8);
-    for b in data.iter_mut() {
-        *b ^= mask.0;
-        mask += 1;
-    }
-}
-
 pub struct Str8XorMaskIter(Wrapping<u8>);
 
 impl Str8XorMaskIter {
-    pub fn apply_array<const N: usize>(&mut self, data: &mut [u8; N]) {
-        for b in data.iter_mut() {
-            *b ^= self.0 .0;
-            self.0 += 1;
-        }
-    }
-
-    pub fn apply_slice(&mut self, data: &mut [u8]) {
-        for b in data.iter_mut() {
-            *b ^= self.0 .0;
-            self.0 += 1;
+    pub fn apply(&mut self, data: &mut [u8]) {
+        for b in data.as_mut().iter_mut() {
+            *b ^= self.next().unwrap();
         }
     }
 }
@@ -51,28 +34,12 @@ impl Iterator for Str8XorMaskIter {
     }
 }
 
-fn xor_mask_unicode(data: &mut [u16]) {
-    let mut mask = Wrapping(0xAAAA);
-    for b in data.iter_mut() {
-        *b ^= mask.0;
-        mask += 1;
-    }
-}
-
 pub struct Str16XorMaskIter(Wrapping<u16>);
 
 impl Str16XorMaskIter {
-    pub fn apply_array<const N: usize>(&mut self, data: &mut [u16; N]) {
+    pub fn apply(&mut self, data: &mut [u16]) {
         for b in data.iter_mut() {
-            *b ^= self.0 .0;
-            self.0 += 1;
-        }
-    }
-
-    pub fn apply_slice(&mut self, data: &mut [u16]) {
-        for b in data.iter_mut() {
-            *b ^= self.0 .0;
-            self.0 += 1;
+            *b ^= self.next().unwrap();
         }
     }
 }
@@ -106,24 +73,23 @@ impl std::fmt::Debug for ImgCrypto {
     }
 }
 
-fn append_chunk_str16<const N: usize>(
-    s: &mut String,
-    v: &[u16; N],
-) -> Result<(), DecodeUtf16Error> {
+fn append_chunk_str16<const N: usize>(s: &mut String, v: &[u16; N]) -> io::Result<()> {
     s.reserve(N);
 
     for c in char::decode_utf16(v.iter().copied()) {
-        s.push(c?);
+        let c = c.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        s.push(c);
     }
 
     Ok(())
 }
 
-fn append_slice_str16(s: &mut String, v: &[u16]) -> Result<(), DecodeUtf16Error> {
+fn append_slice_str16(s: &mut String, v: &[u16]) -> io::Result<()> {
     s.reserve(v.len());
 
     for c in char::decode_utf16(v.iter().copied()) {
-        s.push(c?);
+        let c = c.map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+        s.push(c);
     }
 
     Ok(())
@@ -134,7 +100,7 @@ fn char_decode_latin1(b: u8) -> char {
     b as char
 }
 
-fn append_chunk_str8<const N: usize>(s: &mut String, src: &[u8; N]) -> anyhow::Result<()> {
+fn append_chunk_str8<const N: usize>(s: &mut String, src: &[u8; N]) -> io::Result<()> {
     s.extend(src.iter().copied().map(char_decode_latin1));
     Ok(())
 }
@@ -162,7 +128,10 @@ impl ImgCrypto {
         Self::new(Some(
             WzDataCipher::new_from_slices(
                 default_keys::wz::DEFAULT_WZ_AES_KEY,
-                &[0x45,0x50,0x33,0x01,0x45,0x50,0x33,0x01,0x45,0x50,0x33,0x01,0x45,0x50,0x33,0x01]
+                &[
+                    0x45, 0x50, 0x33, 0x01, 0x45, 0x50, 0x33, 0x01, 0x45, 0x50, 0x33, 0x01, 0x45,
+                    0x50, 0x33, 0x01,
+                ],
             )
             .unwrap(),
         ))
@@ -207,7 +176,7 @@ impl ImgCrypto {
     }
 
     pub fn decode_str8(&self, buf: &mut [u8]) {
-        xor_mask_str8(buf);
+        Str8XorMaskIter::default().apply(buf);
         if self.cipher.is_some() {
             self.crypt(buf);
         }
@@ -215,10 +184,10 @@ impl ImgCrypto {
 
     pub fn encode_str8_mut(&self, buf: &mut [u8]) {
         self.crypt(buf);
-        xor_mask_str8(buf);
+        Str8XorMaskIter::default().apply(buf);
     }
 
-    pub fn read_str8(&self, mut r: impl io::Read, len: usize) -> anyhow::Result<String> {
+    pub fn read_str8(&self, mut r: impl io::Read, len: usize) -> io::Result<String> {
         const CHUNK_LEN: usize = 16;
         let mut res = String::with_capacity(len);
         let chunks = len / CHUNK_LEN;
@@ -230,7 +199,7 @@ impl ImgCrypto {
         for _ in 0..chunks {
             let mut chunk = [0; CHUNK_LEN];
             r.read_exact(bytemuck::cast_slice_mut(&mut chunk))?;
-            xor.apply_array(&mut chunk);
+            xor.apply(&mut chunk);
             crypt.crypt(bytemuck::cast_slice_mut(&mut chunk));
 
             append_chunk_str8(&mut res, &chunk)?;
@@ -239,7 +208,7 @@ impl ImgCrypto {
         if tail > 0 {
             let mut chunk = [0; CHUNK_LEN];
             r.read_exact(bytemuck::cast_slice_mut(&mut chunk[..tail]))?;
-            xor.apply_array(&mut chunk);
+            xor.apply(&mut chunk);
             let chunk = &mut chunk[..tail];
             crypt.crypt(bytemuck::cast_slice_mut(chunk));
 
@@ -262,7 +231,7 @@ impl ImgCrypto {
         for chunk in chunks {
             let mut chunk = *chunk;
             crypt.crypt(bytemuck::cast_slice_mut(&mut chunk));
-            xor.apply_array(&mut chunk);
+            xor.apply(&mut chunk);
             w.write_all(bytemuck::cast_slice(&chunk))?;
         }
 
@@ -272,7 +241,7 @@ impl ImgCrypto {
         chunk[..n].copy_from_slice(tail);
         let chunk = &mut chunk[..n];
         crypt.crypt(bytemuck::cast_slice_mut(chunk));
-        xor.apply_slice(chunk);
+        xor.apply(chunk);
         w.write_all(bytemuck::cast_slice(chunk))?;
 
         Ok(())
@@ -280,17 +249,17 @@ impl ImgCrypto {
 
     pub fn decode_str16(&self, buf: &mut [u16]) {
         if self.cipher.is_some() {
-            xor_mask_unicode(buf);
+            Str16XorMaskIter::default().apply(buf);
             self.crypt(bytemuck::cast_slice_mut(buf));
         }
     }
 
     pub fn encode_str16_mut(&self, buf: &mut [u16]) {
         self.crypt(bytemuck::cast_slice_mut(buf));
-        xor_mask_unicode(buf);
+        Str16XorMaskIter::default().apply(buf);
     }
 
-    pub fn read_str16(&self, mut r: impl io::Read, len: usize) -> anyhow::Result<String> {
+    pub fn read_str16(&self, mut r: impl io::Read, len: usize) -> io::Result<String> {
         const CHUNK_LEN: usize = 16;
         let mut res = String::with_capacity(len);
         let chunks = len / CHUNK_LEN;
@@ -302,7 +271,7 @@ impl ImgCrypto {
         for _ in 0..chunks {
             let mut chunk = [0; CHUNK_LEN];
             r.read_exact(bytemuck::cast_slice_mut(&mut chunk))?;
-            xor.apply_array(&mut chunk);
+            xor.apply(&mut chunk);
             crypt.crypt(bytemuck::cast_slice_mut(&mut chunk));
             append_chunk_str16(&mut res, &chunk)?;
         }
@@ -310,7 +279,7 @@ impl ImgCrypto {
         if tail > 0 {
             let mut chunk = [0; CHUNK_LEN];
             r.read_exact(bytemuck::cast_slice_mut(&mut chunk[..tail]))?;
-            xor.apply_array(&mut chunk);
+            xor.apply(&mut chunk);
             let chunk = &mut chunk[..tail];
             crypt.crypt(bytemuck::cast_slice_mut(chunk));
             append_slice_str16(&mut res, chunk)?;
@@ -323,7 +292,7 @@ impl ImgCrypto {
         let Some(mut crypt) = self.crypt_stream() else {
             return w.write_all(s.as_bytes());
         };
-        
+
         const CHUNK_LEN: usize = 16;
         let mut xor = Str16XorMaskIter::default();
         let (chunks, tail) = as_chunks::<CHUNK_LEN, u16>(s);
@@ -332,7 +301,7 @@ impl ImgCrypto {
         for chunk in chunks {
             let mut chunk = *chunk;
             crypt.crypt(bytemuck::cast_slice_mut(&mut chunk));
-            xor.apply_array(&mut chunk);
+            xor.apply(&mut chunk);
             w.write_all(bytemuck::cast_slice(&chunk))?;
         }
 
@@ -342,13 +311,12 @@ impl ImgCrypto {
         chunk[..n].copy_from_slice(tail);
         let chunk = &mut chunk[..n];
         crypt.crypt(bytemuck::cast_slice_mut(chunk));
-        xor.apply_slice(chunk);
+        xor.apply(chunk);
         w.write_all(bytemuck::cast_slice(chunk))?;
 
         Ok(())
     }
 }
-
 
 #[cfg(test)]
 mod tests {
