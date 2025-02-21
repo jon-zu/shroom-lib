@@ -81,6 +81,11 @@ pub trait BufReadExt: BufRead {
         self.read_n().map(u32::from_le_bytes)
     }
 
+    /// Reads a u16 in little endian order
+    fn read_u16_le(&mut self) -> io::Result<u16> {
+        self.read_n().map(u16::from_le_bytes)
+    }
+
     /// Reads n bytes as array
     fn read_n<const N: usize>(&mut self) -> io::Result<[u8; N]> {
         let mut buf = [0; N];

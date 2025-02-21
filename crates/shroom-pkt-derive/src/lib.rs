@@ -248,7 +248,7 @@ impl ShroomPacket {
     }
 
     /// Generate encode and decode expr
-    fn gen(&self, tokens: &mut proc_macro2::TokenStream) {
+    fn r#gen(&self, tokens: &mut proc_macro2::TokenStream) {
         self.gen_encode(tokens)
             .and_then(|()| self.gen_decode(tokens))
             .unwrap();
@@ -270,7 +270,7 @@ impl ToTokens for EncodePacket {
 
 impl ToTokens for ShroomPacket {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.gen(tokens);
+        self.r#gen(tokens);
     }
 }
 

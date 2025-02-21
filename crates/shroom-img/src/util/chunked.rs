@@ -65,7 +65,7 @@ impl<'a, R: Read> ChunkedReader<'a, R> {
             inner: r,
             ix: 0,
             buf: [0; CHUNK_BUF_LEN],
-            crypto_stream: cipher.crypt_stream().unwrap(),
+            crypto_stream: cipher.chunked_crypt_stream().unwrap(),
             remaining_chunk: 0,
             buf_len: 0,
         }

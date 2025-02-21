@@ -1,22 +1,105 @@
+pub mod list;
 pub mod reader;
 pub mod writer;
-pub mod list;
 
-use std::io::{self, Read, Seek};
+use std::{
+    io::{self, Cursor, Read, Seek, Write},
+    ops::Deref,
+    sync::Arc,
+};
 
-use binrw::{binrw, BinRead, BinWrite, NullString};
+use binrw::{BinRead, BinResult, BinWrite, NullString, binrw};
 
-use shroom_crypto::wz::offset_cipher::WzOffsetCipher;
+use list::{ArchiveImgList, ListImgSet};
+use shroom_crypto::{
+    ShroomVersion, default_keys::wz::DEFAULT_WZ_OFFSET_MAGIC, wz::offset_cipher::WzOffsetCipher,
+};
 use shroom_img::{
     crypto::ImgCrypto,
-    ty::{WzInt, WzStr, WzVec}, util::custom_binrw_error,
+    ty::{WzInt, WzStr, WzVec},
 };
+
+pub fn try_detect_versions<R: Read>(mut r: R) -> BinResult<Vec<ShroomVersion>> {
+    let mut buf = [0; 128];
+    r.read_exact(&mut buf)?;
+
+    
+
+    let mut r = Cursor::new(&buf);
+    let hdr = WzHeader::read(&mut r)?;
+
+    let all = ShroomVersion::wz_detect_version(hdr.version_hash);
+    Ok(ShroomVersion::wz_detect_version(hdr.version_hash).collect())
+}
+
+pub fn try_detect_file_versions(
+    path: impl AsRef<std::path::Path>,
+) -> BinResult<Vec<ShroomVersion>> {
+    let file = std::fs::File::open(path)?;
+    try_detect_versions(file)
+}
 
 #[derive(Debug)]
 pub struct WzContext {
-    img: ImgCrypto,
+    img: Arc<ImgCrypto>,
     wz: WzOffsetCipher,
+    chunked_set: ListImgSet,
+    ver: ShroomVersion,
+}
+
+impl WzContext {
+    pub fn new(ver: impl Into<ShroomVersion>, img: Arc<ImgCrypto>) -> Self {
+        let ver = ver.into();
+        Self {
+            img: img,
+            wz: WzOffsetCipher::new(ver, DEFAULT_WZ_OFFSET_MAGIC),
+            chunked_set: ListImgSet::new(),
+            ver: ver,
+        }
+    }
+    pub fn global(ver: impl Into<ShroomVersion>) -> Self {
+        Self::new(ver, ImgCrypto::global().into())
+    }
+
+    pub fn kms(ver: impl Into<ShroomVersion>) -> Self {
+        Self::new(ver, ImgCrypto::kms().into())
+    }
+
+    pub fn shared(self) -> Arc<Self> {
+        Arc::new(self)
+    }
+
+    pub fn load_img_set(&mut self, mut reader: impl Read + Seek) -> anyhow::Result<()> {
+        let list = ArchiveImgList::read_le_args(&mut reader, &self.img)?;
+        self.chunked_set = ListImgSet::from_list(list);
+        Ok(())
+    }
+
+    pub fn write_img_set(&self, mut writer: impl Write + Seek) -> anyhow::Result<()> {
+        self.chunked_set
+            .to_list()
+            .write_le_args(&mut writer, &self.img)?;
+        Ok(())
+    }
+}
+
+#[derive(Debug)]
+pub struct WzCryptContext {
+    ctx: Arc<WzContext>,
     base_offset: u32,
+}
+
+impl WzCryptContext {
+    pub fn new(ctx: Arc<WzContext>, base_offset: u32) -> Self {
+        Self { ctx, base_offset }
+    }
+}
+
+impl Deref for WzCryptContext {
+    type Target = WzContext;
+    fn deref(&self) -> &WzContext {
+        &self.ctx
+    }
 }
 
 /// Offset in the Wz file
@@ -36,7 +119,7 @@ impl From<WzOffset> for u64 {
 }
 
 impl BinRead for WzOffset {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a WzCryptContext;
 
     fn read_options<R: Read + Seek>(
         reader: &mut R,
@@ -51,7 +134,7 @@ impl BinRead for WzOffset {
 }
 
 impl BinWrite for WzOffset {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a WzCryptContext;
 
     fn write_options<W: std::io::Write + Seek>(
         &self,
@@ -79,11 +162,12 @@ pub struct WzHeader {
     pub file_size: u64,
     pub data_offset: u32,
     pub desc: NullString,
+    pub version_hash: u16,
 }
 
 /// Directory with entries
 #[binrw]
-#[brw(little, import_raw(ctx: &WzContext))]
+#[brw(little, import_raw(ctx: &WzCryptContext))]
 #[derive(Debug)]
 pub struct WzDir(#[brw(args_raw(ctx))] pub WzVec<WzDirEntry>);
 
@@ -109,7 +193,7 @@ impl WzDir {
 
 /// Header of a
 #[binrw]
-#[brw(little, import_raw(ctx: &WzContext))]
+#[brw(little, import_raw(ctx: &WzCryptContext))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WzImgHeader {
     #[brw(args_raw(&ctx.img))]
@@ -121,7 +205,7 @@ pub struct WzImgHeader {
 }
 
 #[binrw]
-#[brw(little, import_raw(ctx: &WzContext))]
+#[brw(little, import_raw(ctx: &WzCryptContext))]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct WzDirHeader {
     #[brw(args_raw(&ctx.img))]
@@ -144,7 +228,7 @@ impl WzDirHeader {
 }
 
 #[binrw]
-#[brw(little, import_raw(ctx: &WzContext))]
+#[brw(little, import_raw(ctx: &WzCryptContext))]
 #[derive(Debug, Clone, PartialEq)]
 pub struct WzLinkHeader {
     #[brw(args_raw(ctx))]
@@ -158,7 +242,7 @@ pub struct WzLinkHeader {
 pub type WzNullHeader = [u8; 10];
 
 #[derive(BinRead, BinWrite, Debug, Clone, PartialEq)]
-#[brw(little, import_raw(ctx: &WzContext))]
+#[brw(little, import_raw(ctx: &WzCryptContext))]
 pub enum WzDirEntry {
     #[brw(magic(1u8))]
     Null(WzNullHeader),
@@ -174,7 +258,7 @@ impl WzDirEntry {
     pub fn name(&self) -> Option<&WzStr> {
         match self {
             WzDirEntry::Null(_) => None,
-            WzDirEntry::Link(link) => Some(&link.link.link_img.name),
+            WzDirEntry::Link(_link) => todo!(), //Some(&link.link.link_img.name),
             WzDirEntry::Dir(dir) => Some(&dir.name),
             WzDirEntry::Img(img) => Some(&img.name),
         }
@@ -212,49 +296,32 @@ impl WzDirEntry {
 #[derive(Debug, PartialEq, Clone)]
 pub struct WzLinkData {
     pub offset: u32,
-    pub link_img: WzImgHeader,
+    //pub link_img: WzImgHeader,
 }
 
 impl BinRead for WzLinkData {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a WzCryptContext;
 
     fn read_options<R: std::io::Read + std::io::Seek>(
         reader: &mut R,
         endian: binrw::Endian,
-        args: Self::Args<'_>,
+        _args: Self::Args<'_>,
     ) -> binrw::BinResult<Self> {
         let offset = u32::read_options(reader, endian, ())?;
-        let old_pos = reader.stream_position()?;
 
-        let link_offset = args.base_offset as u64 + offset as u64;
-        reader.seek(io::SeekFrom::Start(link_offset))?;
-
-        let ty = u8::read_options(reader, endian, ())?;
-        if ty != WZ_DIR_IMG {
-            // TODO: Support directories here?
-            return Err(custom_binrw_error(
-                reader,
-                anyhow::format_err!("Expected link type Img, got {ty}"),
-            ));
-        }
-
-        let link_img = WzImgHeader::read_options(reader, endian, args)?;
-        // Seek back
-        reader.seek(io::SeekFrom::Start(old_pos))?;
-
-        Ok(Self { offset, link_img })
+        Ok(Self { offset })
     }
 }
 
 impl BinWrite for WzLinkData {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a WzCryptContext;
 
     fn write_options<W: io::Write + io::Seek>(
         &self,
-        _writer: &mut W,
-        _endian: binrw::Endian,
+        writer: &mut W,
+        endian: binrw::Endian,
         _args: Self::Args<'_>,
     ) -> binrw::BinResult<()> {
-        unimplemented!()
+        self.offset.write_options(writer, endian, ())
     }
 }

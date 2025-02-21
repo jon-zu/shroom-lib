@@ -129,7 +129,7 @@ where
 
 #[macro_export]
 macro_rules! partial_data {
-    ($name:ident, $partial_name:ident, $partial_ty:ty, derive($($derive:ident),*), $($stat_name:ident($stat_ty:ty) => $stat_ix:expr),* $(,)?) => {
+    ($name:ident, $partial_name:ident, $partial_ty:ty, derive($($derive:ident),*), $($stat_name:ident($stat_ty:ty) => $stat_ix:expr_2021),* $(,)?) => {
         bitflags::bitflags! {
             #[derive(Debug, Clone, Default)]
             pub struct $partial_name: $partial_ty {

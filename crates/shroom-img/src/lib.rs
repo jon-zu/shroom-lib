@@ -22,17 +22,42 @@ pub mod writer;
 
 pub type Offset = u32;
 
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum CanvasDataFlag {
     None,
     Chunked,
     AutoDetect
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ImgContext {
-    pub data_flag: CanvasDataFlag,
-    pub crypto: Arc<ImgCrypto>
+    crypto: Arc<ImgCrypto>,
+    data_flag: CanvasDataFlag
+}
+
+impl ImgContext {
+    pub fn new(crypto: Arc<ImgCrypto>) -> Self {
+        Self {
+            data_flag: CanvasDataFlag::AutoDetect,
+            crypto
+        }
+    }
+
+    pub fn with_flag(crypto: Arc<ImgCrypto>, flag: CanvasDataFlag) -> Self {
+        Self {
+            data_flag: flag,
+            crypto
+        }
+    }
+
+    pub fn global() -> Self  {
+        Self {
+            data_flag: CanvasDataFlag::AutoDetect,
+            crypto: Arc::new(ImgCrypto::global())
+        }
+    }
+
+
 }
 
 impl From<Arc<ImgCrypto>> for ImgContext {
@@ -167,7 +192,7 @@ pub enum PropertyValue {
     Unknown(ObjectHeader),
 }
 
-#[derive(Debug, Deserialize, Serialize, BinRead, BinWrite, Clone)]
+#[derive(Debug, Deserialize, Serialize, BinRead, BinWrite, Clone, PartialEq, PartialOrd)]
 pub struct Vec2 {
     #[br(map = |x: WzInt| x.0)]
     #[bw(map = |x: &i32| WzInt(*x))]
@@ -177,7 +202,7 @@ pub struct Vec2 {
     pub y: i32,
 }
 
-#[derive(Debug, Deserialize, Serialize, Clone)]
+#[derive(Debug, Deserialize, Serialize, Clone, PartialEq, PartialOrd)]
 pub struct Convex2(pub Vec<Vec2>);
 
 impl BinRead for Convex2 {
@@ -243,8 +268,8 @@ pub struct Link(#[brw(args_raw(ctx))] pub ImgStr);
 #[derive(Debug, BinRead, BinWrite)]
 #[brw(little, magic = 0u16)]
 pub struct Property(
-    #[br(map = |x: WzInt| x.0 as usize)]
-    #[bw(map = |x: &usize| WzInt(*x as i32))]
+    #[br(map = |x: WzInt| x.0 as u32)]
+    #[bw(map = |x: &u32| WzInt(*x as i32))]
     /// Item length
-    pub usize,
+    pub u32,
 );

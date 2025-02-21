@@ -14,10 +14,6 @@ use crate::{
     Offset,
 };
 
-// Non-string offset caps
-// bookName(8  for prop key)
-// snail(5) for prop value
-
 #[derive(Debug, Default)]
 pub struct StrOffsetTable(HashMap<ArcStr, Offset>);
 
@@ -122,7 +118,7 @@ impl OffsetStrTable {
         crypto: &ImgCrypto,
     ) -> BinResult<&ArcStr> {
         let offset = r.stream_position()? as u32;
-        // TODO read the string straight from the reader to avoid copyings
+        // TODO read the string straight from the reader to avoid copying
         let str = ArcStr::from(WzStr::read_le_args(r, crypto)?.0.as_str());
         self.0.insert(offset, str);
         Ok(self.0.get(&offset).unwrap())

@@ -3,9 +3,12 @@ use std::vec;
 use bit_struct::{u4, u5, u6};
 use bytemuck::{Pod, Zeroable};
 use image::RgbaImage;
-use rgb::{alt::BGRA8, RGBA8};
+use rgb::{RGBA8, alt::BGRA8};
 
-use crate::canvas::{WzCanvasHeader, WzPixelFormat};
+use crate::{
+    canvas::{WzCanvasHeader, WzCanvasScaling, WzPixelFormat},
+    ty::WzInt,
+};
 
 bit_struct::bit_struct! {
     pub struct BGRA4(u16) {
@@ -32,11 +35,40 @@ impl From<BGRA4> for rgb::RGBA8 {
     }
 }
 
+impl BGRA4 {
+    pub fn to_bytes(&self) -> [u8; 2] {
+        self.0.inner().to_le_bytes()
+    }
+
+    pub fn from_rgba8(px: rgb::RGBA8) -> Self {
+        let r = px.r / 16;
+        let g = px.g / 16;
+        let b = px.b / 16;
+        let a = px.a / 16;
+
+        Self::new(u4::new(a).unwrap(), u4::new(r).unwrap(), u4::new(g).unwrap(), u4::new(b).unwrap())
+    }
+}
+
 bit_struct::bit_struct! {
     pub struct BGR565(u16) {
         r: u5,
         g: u6,
         b: u5,
+    }
+}
+
+impl BGR565 {
+    pub fn to_bytes(&self) -> [u8; 2] {
+        self.0.inner().to_le_bytes()
+    }
+
+    pub fn from_rgba8(px: rgb::RGBA8) -> Self {
+        let r = px.r / 8;
+        let g = px.g / 4;
+        let b = px.b / 8;
+
+        Self::new(u5::new(r).unwrap(), u6::new(g).unwrap(), u5::new(b).unwrap())
     }
 }
 
@@ -77,6 +109,30 @@ impl<'a> CanvasRef<'a> {
         })
     }
 
+    pub fn as_bgra4(&self) -> Option<&[BGRA4]> {
+        if self.hdr.pix_fmt != WzPixelFormat::BGRA4 {
+            return None;
+        }
+
+        Some(bytemuck::cast_slice(self.data))
+    }
+
+    pub fn as_bgra8(&self) -> Option<&[BGRA8]> {
+        if self.hdr.pix_fmt != WzPixelFormat::BGRA8 {
+            return None;
+        }
+
+        Some(bytemuck::cast_slice(self.data))
+    }
+
+    pub fn as_bgr565(&self) -> Option<&[BGR565]> {
+        if self.hdr.pix_fmt != WzPixelFormat::BGR565 {
+            return None;
+        }
+
+        Some(bytemuck::cast_slice(self.data))
+    }
+
     pub fn to_rgba_image(&self) -> anyhow::Result<image::RgbaImage> {
         let (w, h) = self.hdr.dim();
 
@@ -101,5 +157,74 @@ impl<'a> CanvasRef<'a> {
                 Self::create_img::<RGBA8>(bytemuck::cast_slice(&buf), (w, h))
             }
         })
+    }
+}
+
+pub struct CanvasOwned {
+    hdr: WzCanvasHeader,
+    data: Vec<u8>,
+}
+
+impl CanvasOwned {
+    pub fn new(hdr: WzCanvasHeader, data: Vec<u8>) -> Self {
+        Self { hdr, data }
+    }
+
+    pub fn from_image(img: &RgbaImage, pix: WzPixelFormat) -> Self {
+        let (w, h) = img.dimensions();
+        let hdr = WzCanvasHeader {
+            width: w,
+            height: h,
+            pix_fmt: pix,
+            scale: WzCanvasScaling::S0,
+            padding: [WzInt(0); 4],
+        };
+
+        let mut data = Vec::new();
+
+        match pix {
+            WzPixelFormat::BGRA4 => {
+                data.reserve((w * h * 2) as usize);
+                for (_, px) in img.pixels().enumerate() {
+                    let px = BGRA4::from_rgba8(px.0.into());
+                    data.extend_from_slice(&px.to_bytes());
+                }
+            }
+            WzPixelFormat::BGR565 => {
+                data.reserve((w * h * 2) as usize);
+                for (_, px) in img.pixels().enumerate() {
+                    let px = BGRA4::from_rgba8(px.0.into());
+                    data.extend_from_slice(&px.to_bytes());
+                }
+            }
+            WzPixelFormat::BGRA8 => {
+                data.reserve((w * h * 4) as usize);
+                for (_, px) in img.pixels().enumerate() {
+                    let px = px.0;
+                    let px = BGRA8 {
+                        b: px[2],
+                        g: px[1],
+                        r: px[0],
+                        a: px[3],
+                    };
+                    data.extend_from_slice(bytemuck::bytes_of(&px));
+                }
+            }
+            _ => todo!(),
+        }
+
+        Self { hdr, data }
+    }
+
+    pub fn header(&self) -> &WzCanvasHeader {
+        &self.hdr
+    }
+
+    pub fn as_ref(&self) -> CanvasRef {
+        CanvasRef::new(&self.data, &self.hdr)
+    }
+
+    pub fn into_parts(self) -> (WzCanvasHeader, Vec<u8>) {
+        (self.hdr, self.data)
     }
 }

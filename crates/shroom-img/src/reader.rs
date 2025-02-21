@@ -1,7 +1,3 @@
-// TODO: support binrw's BufReader for better performance
-// However read_canvas would somehow call the seek_invalidate function
-// instead of normal seeking for that special reader
-
 use arcstr::ArcStr;
 use binrw::{BinRead, BinResult};
 
@@ -12,11 +8,17 @@ use std::{
 };
 
 use crate::{
-    canvas::{WzCanvasHeader, WzCanvasLen, WzCanvasPropHeader}, crypto::ImgCrypto, data::{Data, OwnedReaderDataResolver, ReaderDataResolver}, error::ImgError, sound::WzSound, ty::WzInt, util::{chunked::ChunkedReader, BufReadExt}, Convex2, ImgContext, Link, PropertyValue, Vec2
+    Convex2, ImgContext, Link, PropertyValue, Vec2,
+    canvas::{WzCanvasHeader, WzCanvasLen, WzCanvasPropHeader},
+    data::{Data, OwnedReaderDataResolver, ReaderDataResolver},
+    error::ImgError,
+    sound::WzSound,
+    ty::WzInt,
+    util::{BufReadExt, PeekExt, chunked::ChunkedReader},
 };
 use crate::{
-    str_table::{OffsetStrTable, ReadStrCtx},
     ObjTypeTag, Property,
+    str_table::{OffsetStrTable, ReadStrCtx},
 };
 
 pub trait ImgRead: BufRead + Read + Seek {}
@@ -156,6 +158,13 @@ impl<R: ImgRead> ImgReader<R> {
         Ok(())
     }
 
+    fn probe_chunked(hdr: u16) -> bool {
+        let is_zlib = (hdr & 0xFF) == 0x78;
+        let with_preset = hdr & (1 << 13) != 0;
+
+        !is_zlib || with_preset
+    }
+
     pub fn read_canvas_data(
         &mut self,
         offset: u64,
@@ -164,14 +173,31 @@ impl<R: ImgRead> ImgReader<R> {
     ) -> BinResult<()> {
         self.r.seek(std::io::SeekFrom::Start(offset))?;
         let (_, len) = self.read_canvas_len()?;
-        let mut limited = (&mut self.r).take(len.data_len() as u64);
+        let data_len = len.data_len() as u64;
 
-        let eu_crypto = ImgCrypto::europe();
-        let mut chunked = ChunkedReader::new(&mut limited, &eu_crypto);
+        let chunked = match &self.ctx.data_flag {
+            crate::CanvasDataFlag::None => false,
+            crate::CanvasDataFlag::Chunked => true,
+            crate::CanvasDataFlag::AutoDetect => {
+                let peek = self.r.peek_u16()?;
+                Self::probe_chunked(peek)
+            }
+        };
 
-        chunked
-            .decompress_flate_size_to(w, hdr.txt_data_size() as u64)
-            .map_err(|err| ImgError::DecompressionFailed(offset, err).binrw_error(&mut self.r))?;
+        let len = hdr.txt_data_size() as u64;
+        let mut limited = (&mut self.r).take(data_len);
+
+        if chunked {
+            ChunkedReader::new(&mut limited, &self.ctx.crypto)
+                .decompress_flate_size_to(w, len)
+                .map_err(|err| {
+                    ImgError::DecompressionFailed(offset, err).binrw_error(&mut self.r)
+                })?;
+        } else {
+            limited.decompress_flate_size_to(w, len).map_err(|err| {
+                ImgError::DecompressionFailed(offset, err).binrw_error(&mut self.r)
+            })?;
+        }
 
         Ok(())
     }

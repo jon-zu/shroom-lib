@@ -21,36 +21,54 @@ impl ShroomVersion {
     }
 
     /// Gets the raw version
-    pub fn raw(&self) -> u16 {
+    pub const fn raw(&self) -> u16 {
         self.0
     }
 
     /// Inverts the version bitwise
     #[must_use]
-    pub fn invert(&self) -> Self {
+    pub const fn invert(&self) -> Self {
         Self(!self.0)
     }
 
     /// Calculates the wz version hash
-    pub fn wz_hash(&self) -> u32 {
-        let mut buffer = itoa::Buffer::new();
-        buffer
-            .format(self.0)
-            .as_bytes()
-            .iter()
-            .fold(0, |mut acc, &c| {
-                acc <<= 5;
-                acc + u32::from(c) + 1
-            })
+    pub const fn wz_hash(&self) -> u32 {
+        let mut n = self.0;
+
+        // Reverse the number
+        let mut reversed = 0;
+        while n > 0 {
+            reversed = reversed * 10 + (n % 10);
+            n /= 10;
+        }
+
+        let mut hash: u32 = 0;
+        while reversed > 0 {
+            let digit = ((reversed % 10) as u8 + b'0') as u32;
+            hash = (hash << 5) + digit + 1;
+            reversed /= 10;
+        }
+
+        hash
     }
 
     /// Calculates the encrypted wz version
-    pub fn wz_encrypt(&self) -> u16 {
+    pub const fn wz_encrypt(&self) -> u16 {
         // Xor each byte of the version hash
-        self.wz_hash()
-            .to_be_bytes()
-            .iter()
-            .fold(0xFF, |acc, &b| acc ^ u16::from(b))
+        let data = self.wz_hash().to_be_bytes();
+        let mut result = 0xFF;
+        result ^= data[0] as u16;
+        result ^= data[1] as u16;
+        result ^= data[2] as u16;
+        result ^= data[3] as u16;
+        result
+    }
+
+
+    pub fn wz_detect_version(encrypted: u16) -> impl Iterator<Item = ShroomVersion> {
+        (1..=400)
+            .map(Self::new)
+            .filter(move |v| v.wz_encrypt() == encrypted)
     }
 }
 
@@ -69,5 +87,9 @@ mod tests {
         let v95 = ShroomVersion::new(95);
         assert_eq!(v95.wz_hash(), 1910);
         assert_eq!(v95.wz_encrypt(), 142);
+
+        let v71 = ShroomVersion::new(71);
+        assert_eq!(v71.wz_hash(), 1842);
+        assert_eq!(v71.wz_encrypt(), 202);
     }
 }

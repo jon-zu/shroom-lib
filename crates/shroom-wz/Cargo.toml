@@ -1,12 +1,12 @@
 [package]
 name = "shroom-wz"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
-anyhow = "1.0.93"
+anyhow = "1.0.96"
 binrw = "0.14"
-bytemuck = "1.20.0"
+bytemuck = "1.21.0"
 image = "0.25.5"
 shroom-crypto = { version = "0.1.0", path = "../shroom-crypto" }
 shroom-img = { version = "0.1.0", path = "../shroom-img" }
