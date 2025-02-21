@@ -37,7 +37,7 @@ impl From<u32> for RoundKey {
 
 impl rand::Fill for RoundKey {
     fn try_fill<R: rand::Rng + ?Sized>(&mut self, rng: &mut R) -> Result<(), rand::Error> {
-        self.0 = rng.gen();
+        self.0 = rng.r#gen();
         Ok(())
     }
 }

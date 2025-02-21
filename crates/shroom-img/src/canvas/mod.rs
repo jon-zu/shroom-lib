@@ -131,8 +131,8 @@ impl WzCanvasLen {
         }
     }
 
-    pub fn data_len(&self) -> usize {
-        self.data_len.wrapping_sub(1) as usize
+    pub fn data_len(&self) -> u32 {
+        self.data_len.wrapping_sub(1)
     }
     
 }

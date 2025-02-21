@@ -1,7 +1,7 @@
 [package]
 name = "shroom-crypto"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
@@ -11,6 +11,5 @@ aes = "0.8"
 cipher = { version = "0.4", features = ["block-padding"] }
 rand = "0.8"
 ofb = "0.6.1"
-itoa = "1.0.14"
 bytemuck = "1.21.0"
 crc = "3.2.1"

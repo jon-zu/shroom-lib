@@ -4,19 +4,35 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    Convex2, ObjTypeTag, PropertyValue, Vec2,
     canvas::WzCanvasHeader,
     data::{Data, DataResolver},
     reader::{ImgRead, ImgReader},
     sound::WzSound,
     str_table::ImgStr,
     writer::{ImgWrite, ImgWriter},
-    Convex2, ObjTypeTag, PropertyValue, Vec2,
 };
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Property(pub indexmap::IndexMap<ArcStr, Value>);
 
 impl Property {
+    pub fn new() -> Self {
+        Self(IndexMap::new())
+    }
+
+    pub fn check_equal(&self, other: &Self) -> bool {
+        self.0.len() == other.0.len()
+            && self
+                .0
+                .iter()
+                .all(|(k, v)| other.0.get(k).map_or(false, |o| v.check_equal(o)))
+    }
+
+    pub fn insert(&mut self, key: &str, value: Value) {
+        self.0.insert(ArcStr::from(key), value);
+    }
+
     pub fn get(&self, key: &str) -> Option<&Value> {
         self.0.get(key)
     }
@@ -27,7 +43,7 @@ impl Property {
 
     pub fn from_reader<R: ImgRead>(r: &mut ImgReader<R>) -> BinResult<Self> {
         let prop = r.read_property()?;
-        let len = prop.0;
+        let len = prop.0 as usize;
         let mut ix = IndexMap::with_capacity(len);
 
         for _ in 0..len {
@@ -40,7 +56,7 @@ impl Property {
 
     pub fn write<W: ImgWrite, D: DataResolver>(&self, w: &mut ImgWriter<W, D>) -> BinResult<()> {
         // Write len
-        w.write_property(crate::Property(self.0.len()))?;
+        w.write_property(crate::Property(self.0.len() as u32))?;
         // Write props
         for (k, v) in &self.0 {
             w.write_property_key(k)?;
@@ -65,11 +81,31 @@ pub struct Canvas {
     pub hdr: WzCanvasHeader,
     pub data: Data,
 }
+impl Canvas {
+    fn check_equal(&self, other: &Canvas) -> bool {
+        let prop_check = match (&self.prop, &other.prop) {
+            (Some(p1), Some(p2)) => p1.check_equal(p2),
+            (None, None) => true,
+            _ => false,
+        };
+        if !prop_check {
+            return false;
+        }
+
+        self.hdr.dim() == other.hdr.dim() && self.hdr.scale == other.hdr.scale
+    }
+}
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Sound {
     pub hdr: WzSound,
     pub data: Data,
+}
+impl Sound {
+    fn check_equal(&self, other: &Sound) -> bool {
+        //TODO more
+        return self.hdr.size == other.hdr.size && self.hdr.len_ms == other.hdr.len_ms;
+    }
 }
 
 #[derive(Debug, Deserialize, Serialize)]
@@ -88,11 +124,84 @@ pub enum Value {
     Null,
 }
 
+impl From<&str> for Value {
+    fn from(s: &str) -> Self {
+        Value::String(ArcStr::from(s))
+    }
+}
+
+impl From<bool> for Value {
+    fn from(b: bool) -> Self {
+        Value::Bool(b)
+    }
+}
+
+impl From<i16> for Value {
+    fn from(i: i16) -> Self {
+        Value::I16(i)
+    }
+}
+
+impl From<u16> for Value {
+    fn from(u: u16) -> Self {
+        Value::U16(u)
+    }
+}
+
+impl From<i32> for Value {
+    fn from(i: i32) -> Self {
+        Value::I32(i)
+    }
+}
+
+impl From<u32> for Value {
+    fn from(u: u32) -> Self {
+        Value::U32(u)
+    }
+}
+
+impl From<i64> for Value {
+    fn from(i: i64) -> Self {
+        Value::I64(i)
+    }
+}
+
+impl From<f32> for Value {
+    fn from(f: f32) -> Self {
+        Value::F32(f)
+    }
+}
+
+impl From<f64> for Value {
+    fn from(f: f64) -> Self {
+        Value::F64(f)
+    }
+}
+
+
+
 impl Value {
     pub fn as_object(&self) -> Option<&Object> {
         match self {
             Value::Object(o) => Some(o),
             _ => None,
+        }
+    }
+
+    pub fn check_equal(&self, other: &Value) -> bool {
+        match (self, other) {
+            (Value::Bool(b1), Value::Bool(b2)) => b1 == b2,
+            (Value::I16(i1), Value::I16(i2)) => i1 == i2,
+            (Value::U16(u1), Value::U16(u2)) => u1 == u2,
+            (Value::I32(i1), Value::I32(i2)) => i1 == i2,
+            (Value::U32(u1), Value::U32(u2)) => u1 == u2,
+            (Value::I64(i1), Value::I64(i2)) => i1 == i2,
+            (Value::F32(f1), Value::F32(f2)) => f1 == f2,
+            (Value::F64(f1), Value::F64(f2)) => f1 == f2,
+            (Value::String(s1), Value::String(s2)) => s1 == s2,
+            (Value::Object(o1), Value::Object(o2)) => o1.check_equal(o2),
+            (Value::Null, Value::Null) => true,
+            _ => false,
         }
     }
 }
@@ -202,6 +311,17 @@ pub enum Object {
 }
 
 impl Object {
+    pub fn check_equal(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Object::Property(p1), Object::Property(p2)) => p1.check_equal(p2),
+            (Object::Canvas(c1), Object::Canvas(c2)) => c1.check_equal(c2),
+            (Object::Link(l1), Object::Link(l2)) => l1 == l2,
+            (Object::Vec2(v1), Object::Vec2(v2)) => v1 == v2,
+            (Object::Convex2(v1), Object::Convex2(v2)) => v1 == v2,
+            (Object::Sound(s1), Object::Sound(s2)) => s1.check_equal(s2),
+            _ => false,
+        }
+    }
 
     pub fn as_property(&self) -> Option<&Property> {
         match self {
@@ -263,7 +383,7 @@ impl Object {
                 r.skip(hdr.data_size() as u64)?;
                 Object::Sound(Sound { hdr, data })
             }
-            ObjTypeTag::Link => Object::Link(r.read_link()?.0 .0),
+            ObjTypeTag::Link => Object::Link(r.read_link()?.0.0),
             ObjTypeTag::Vec2 => Object::Vec2(r.read_vec2()?),
             ObjTypeTag::Convex2 => Object::Convex2(r.read_convex2()?),
         })
@@ -311,12 +431,13 @@ mod tests {
 
     use glob::glob;
 
-    use crate::crypto::ImgCrypto;
+    use crate::{ImgContext, crypto::ImgCrypto};
 
     use super::*;
 
     const DATA: &str = "/home/jonas/shared_vm/maplestory/data";
 
+    #[ignore]
     #[test]
     fn test_all() {
         let crypto = Arc::new(ImgCrypto::global());
@@ -330,34 +451,44 @@ mod tests {
         }
     }
 
+    #[ignore]
     #[test]
     fn file() {
-        /*let boss_path = "Mob/8800102.img";
-        let sound_path = "Sound/BgmGL.img";*/
-        let p = "Mob/9400630.img";
+        //let p = "Mob/8800102.img";
+        //let p = "Sound/BgmGL.img";
+        //let p = "Mob/9400630.img";
+        let p = "Map/Map/Map0/000010000.img";
 
-        let crypto = Arc::new(ImgCrypto::global());
-        let mut r = ImgReader::open(format!("{DATA}/{p}"), crypto.clone().into()).unwrap();
+        let ctx = ImgContext::global();
+        let file = format!("{DATA}/{p}");
+
+        let mut r = ImgReader::open(file, ctx.clone()).unwrap();
         let value = Object::from_reader(&mut r).unwrap();
         //dbg!(&value);
 
         let out_json = serde_json::to_string_pretty(&value).unwrap();
         std::fs::write("out.json", out_json).unwrap();
 
-        let mut w = ImgWriter::create_file("out.img", r.as_resolver(), crypto.into()).unwrap();
+        let mut w = ImgWriter::create_file("out.img", r.as_resolver(), ctx.clone()).unwrap();
         value.write(&mut w).unwrap();
         dbg!(w.pos().unwrap());
 
-        let mut w = ImgWriter::create_file(
+        /*let mut w = ImgWriter::create_file(
             "out_dec.img",
             r.as_resolver(),
-            Arc::new(ImgCrypto::none()).into(),
+            ctx
         )
         .unwrap();
         value.write(&mut w).unwrap();
-        dbg!(w.pos().unwrap());
+        dbg!(w.pos().unwrap());*/
+
+        let f = BufReader::new(File::open("out.img").unwrap());
+        let mut r = ImgReader::new(f, ctx.clone());
+        let new_value = Object::from_reader(&mut r).unwrap();
+        assert!(value.check_equal(&new_value));
     }
 
+    #[ignore]
     #[test]
     fn myimg() {
         let f = BufReader::new(File::open("out.img").unwrap());

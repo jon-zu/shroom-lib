@@ -1,13 +1,13 @@
-use binrw::{helpers::until_eof_with, BinRead, BinReaderExt, BinWrite, BinWriterExt};
-use shroom_img::util::custom_binrw_error;
+use std::collections::HashSet;
 
-use crate::WzContext;
+use binrw::{BinRead, BinReaderExt, BinWrite, BinWriterExt, helpers::until_eof_with};
+use shroom_img::{crypto::ImgCrypto, util::custom_binrw_error};
 
 #[derive(Debug, Clone)]
 pub struct ArchiveImgEntry(pub String);
 
 impl BinRead for ArchiveImgEntry {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a ImgCrypto;
 
     fn read_options<R: std::io::prelude::Read + std::io::prelude::Seek>(
         reader: &mut R,
@@ -15,24 +15,17 @@ impl BinRead for ArchiveImgEntry {
         args: Self::Args<'_>,
     ) -> binrw::prelude::BinResult<Self> {
         let len = reader.read_type::<u32>(endian)? as usize;
-        if len % 2 != 0 || len == 0 {
-            return Err(custom_binrw_error(
-                reader,
-                anyhow::anyhow!("List Entry name invalid string length"),
-            ));
-        }
-
-        let mut buf = vec![0u16; len];
-        args.img.crypt(bytemuck::cast_slice_mut(&mut buf));
-        reader.read_exact(bytemuck::cast_slice_mut(&mut buf[..len - 1]))?;
+        let mut buf = vec![0u16; len + 1];
+        reader.read_exact(bytemuck::cast_slice_mut(&mut buf))?;
+        args.crypt(bytemuck::cast_slice_mut(&mut buf));
         Ok(Self(
-            String::from_utf16(&buf).map_err(|err| custom_binrw_error(reader, err))?,
+            String::from_utf16(&buf[..len]).map_err(|err| custom_binrw_error(reader, err))?,
         ))
     }
 }
 
 impl BinWrite for ArchiveImgEntry {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a ImgCrypto;
 
     fn write_options<W: std::io::Write + std::io::Seek>(
         &self,
@@ -41,9 +34,10 @@ impl BinWrite for ArchiveImgEntry {
         args: Self::Args<'_>,
     ) -> binrw::prelude::BinResult<()> {
         let mut buf = self.0.encode_utf16().collect::<Vec<_>>();
+        let len = buf.len() as u32;
         buf.push(0);
-        args.img.crypt(bytemuck::cast_slice_mut(&mut buf));
-        writer.write_type(&(buf.len() as u32), endian)?;
+        args.crypt(bytemuck::cast_slice_mut(&mut buf));
+        writer.write_type(&len, endian)?;
         writer.write_all(bytemuck::cast_slice(&buf))?;
         Ok(())
     }
@@ -53,7 +47,7 @@ impl BinWrite for ArchiveImgEntry {
 pub struct ArchiveImgList(pub Vec<ArchiveImgEntry>);
 
 impl BinRead for ArchiveImgList {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a ImgCrypto;
 
     fn read_options<R: std::io::prelude::Read + std::io::prelude::Seek>(
         reader: &mut R,
@@ -67,7 +61,7 @@ impl BinRead for ArchiveImgList {
 }
 
 impl BinWrite for ArchiveImgList {
-    type Args<'a> = &'a WzContext;
+    type Args<'a> = &'a ImgCrypto;
 
     fn write_options<W: std::io::prelude::Write + std::io::prelude::Seek>(
         &self,
@@ -76,5 +70,31 @@ impl BinWrite for ArchiveImgList {
         args: Self::Args<'_>,
     ) -> binrw::prelude::BinResult<()> {
         self.0.write_options(writer, endian, args)
+    }
+}
+
+#[derive(Debug)]
+pub struct ListImgSet(HashSet<String>);
+
+impl ListImgSet {
+    pub fn new() -> Self {
+        Self(HashSet::new())
+    }
+
+    pub fn from_list(list: ArchiveImgList) -> Self {
+        Self(
+            list.0
+                .into_iter()
+                .map(|entry| entry.0.to_ascii_lowercase())
+                .collect(),
+        )
+    }
+
+    pub fn contains(&self, s: &str) -> bool {
+        self.0.contains(&s.to_ascii_lowercase())
+    }
+
+    pub fn to_list(&self) -> ArchiveImgList {
+        ArchiveImgList(self.0.iter().map(|s| ArchiveImgEntry(s.clone())).collect())
     }
 }

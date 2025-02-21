@@ -9,7 +9,7 @@ pub struct WzOffsetCipher {
 }
 
 impl WzOffsetCipher {
-    pub fn new(version: ShroomVersion, offset_magic: u32) -> Self {
+    pub const fn new(version: ShroomVersion, offset_magic: u32) -> Self {
         Self {
             offset_magic,
             version_hash: version.wz_hash(),
@@ -39,8 +39,7 @@ impl WzOffsetCipher {
 #[cfg(test)]
 mod tests {
     use crate::{
-        default_keys::wz::DEFAULT_WZ_OFFSET_MAGIC, wz::offset_cipher::WzOffsetCipher,
-        ShroomVersion,
+        ShroomVersion, default_keys::wz::DEFAULT_WZ_OFFSET_MAGIC, wz::offset_cipher::WzOffsetCipher,
     };
 
     #[test]

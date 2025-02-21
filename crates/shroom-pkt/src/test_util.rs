@@ -38,7 +38,7 @@ where
 /// Helper macro to allow
 #[macro_export]
 macro_rules! test_enc_dec_borrow {
-    ($d:expr) => {
+    ($d:expr_2021) => {
         let mut data = Vec::new();
         $crate::test_util::enc_dec_lf($d, &mut data);
     };

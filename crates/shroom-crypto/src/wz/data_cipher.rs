@@ -1,9 +1,14 @@
 use aes::Aes256;
 use cipher::{
+    InnerIvInit, IvSizeUser, IvState, KeyInit, KeyIvInit, KeySizeUser, StreamCipher,
     generic_array::GenericArray,
     inout::InOutBuf,
     typenum::{U16, U32},
-    InnerIvInit, IvSizeUser, IvState, KeyInit, KeyIvInit, KeySizeUser, StreamCipher,
+};
+
+use crate::default_keys::{
+    net::DEFAULT_AES_KEY,
+    wz::{GLOBAL_WZ_IV, SEA_WZ_IV},
 };
 
 type Aes256Ofb<'a> = ofb::Ofb<&'a aes::Aes256>;
@@ -22,10 +27,8 @@ pub struct WzDataCipher<const N: usize = DEFAULT_WZ_CIPHER_CACHE> {
 
 impl<const N: usize> std::fmt::Debug for WzDataCipher<N> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("WzDataCipher")
-            .finish_non_exhaustive()
+        f.debug_struct("WzDataCipher").finish_non_exhaustive()
     }
-
 }
 
 impl<const N: usize> KeySizeUser for WzDataCipher<N> {
@@ -52,6 +55,18 @@ impl<const N: usize> KeyIvInit for WzDataCipher<N> {
 }
 
 impl<const N: usize> WzDataCipher<N> {
+    pub fn from_iv(iv: &[u8; 16]) -> Self {
+        Self::new(DEFAULT_AES_KEY.into(), iv.into())
+    }
+
+    pub fn global() -> Self {
+        Self::from_iv(GLOBAL_WZ_IV)
+    }
+
+    pub fn europe() -> Self {
+        Self::from_iv(SEA_WZ_IV)
+    }
+
     /// Precache the key, since ofb uses xor
     /// we can just xor It with a 0 block to get the key
     fn calc_cache_key(ofb: &mut Aes256Ofb) -> [[u8; 16]; N] {

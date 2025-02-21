@@ -140,7 +140,7 @@ impl<D: EncodePacket> EncodePacket for Option<D> {
     const SIZE_HINT: SizeHint = SizeHint::NONE;
 
     fn encode<T: BufMut>(&self, pw: &mut PacketWriter<T>) -> PacketResult<()> {
-        if let Some(ref v) = self {
+        if let Some(v) = self {
             v.encode(pw)?;
         }
 

@@ -30,7 +30,7 @@ macro_rules! mark_shroom_enum {
 #[macro_export]
 macro_rules! shroom_enum_code {
     // Without default
-    ($name:ident, $repr_ty:ty, $($code_name:ident = $val:expr),+) => {
+    ($name:ident, $repr_ty:ty, $($code_name:ident = $val:expr_2021),+) => {
         #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, num_enum::TryFromPrimitive, num_enum::IntoPrimitive)]
         #[repr($repr_ty)]
         pub enum $name {
@@ -41,7 +41,7 @@ macro_rules! shroom_enum_code {
     };
 
     // With default
-    ($name:ident, $repr_ty:ty, default($def_name:ident = $def_val:expr), $($code_name:ident = $val:expr),+,) => {
+    ($name:ident, $repr_ty:ty, default($def_name:ident = $def_val:expr_2021), $($code_name:ident = $val:expr_2021),+,) => {
         #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, num_enum::TryFromPrimitive, num_enum::IntoPrimitive, Default)]
         #[repr($repr_ty)]
         pub enum $name {
@@ -69,7 +69,7 @@ macro_rules! shroom_pkt_enum {
         $vis:vis enum $Enum:ident: $T:ty {
             $(
                 $(#[$inner:ident $($args:tt)*])*
-                $Variant:ident($VariantTy:ty) =  $VariantDisc:expr
+                $Variant:ident($VariantTy:ty) =  $VariantDisc:expr_2021
             ),*
         }
 
