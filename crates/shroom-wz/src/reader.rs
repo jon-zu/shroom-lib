@@ -1,9 +1,12 @@
 use std::{
-    fs::File, io::{self, BufRead, BufReader, Read, Seek}, path::Path, sync::Arc
+    fs::File,
+    io::{self, BufRead, BufReader, Cursor, Read, Seek},
+    path::Path,
+    sync::Arc,
 };
 
 use binrw::BinRead;
-use shroom_img::{reader::ImgReader, CanvasDataFlag, ImgContext};
+use shroom_img::{CanvasDataFlag, ImgContext, reader::ImgReader};
 
 use crate::{WzContext, WzCryptContext, WzDir, WzDirHeader, WzHeader, WzImgHeader, WzOffset};
 
@@ -16,8 +19,12 @@ pub struct SubReader<R> {
 
 impl<R: Seek> SubReader<R> {
     pub fn create(mut reader: R, offset: u64, len: u64) -> io::Result<Self> {
-        reader.seek(std::io::SeekFrom::Start(offset as u64))?;
-        Ok(Self { reader, offset, len })
+        reader.seek(std::io::SeekFrom::Start(offset))?;
+        Ok(Self {
+            reader,
+            offset,
+            len,
+        })
     }
 
     fn adj_relative(&self, offset: i64) -> i64 {
@@ -26,13 +33,13 @@ impl<R: Seek> SubReader<R> {
     }
 }
 
-impl<'a, R: Read> Read for SubReader<R> {
+impl<R: Read> Read for SubReader<R> {
     fn read(&mut self, buf: &mut [u8]) -> io::Result<usize> {
         self.reader.read(buf)
     }
 }
 
-impl<'a, R: BufRead> BufRead for SubReader<R> {
+impl<R: BufRead> BufRead for SubReader<R> {
     fn fill_buf(&mut self) -> io::Result<&[u8]> {
         self.reader.fill_buf()
     }
@@ -46,12 +53,10 @@ impl<R: io::Seek> io::Seek for SubReader<R> {
     fn seek(&mut self, pos: io::SeekFrom) -> io::Result<u64> {
         let pos = match pos {
             io::SeekFrom::Start(s) => self.reader.seek(io::SeekFrom::Start(s + self.offset))?,
-            io::SeekFrom::End(e) => {
-                self.reader.seek(io::SeekFrom::End(self.adj_relative(e)))?
-            }
-            io::SeekFrom::Current(c) => {
-                self.reader.seek(io::SeekFrom::Current(self.adj_relative(c)))?
-            }
+            io::SeekFrom::End(e) => self.reader.seek(io::SeekFrom::End(self.adj_relative(e)))?,
+            io::SeekFrom::Current(c) => self
+                .reader
+                .seek(io::SeekFrom::Current(self.adj_relative(c)))?,
         };
         Ok(pos - self.offset)
     }
@@ -98,7 +103,10 @@ impl<T: Read + Seek> WzReader<T> {
         Ok(WzDir::read_le_args(&mut self.reader, &self.ctx)?)
     }
 
-    pub fn img_reader(&mut self, img: &WzImgHeader) -> anyhow::Result<ImgReader<SubReader<&mut T>>> where T: BufRead {
+    pub fn img_reader(&mut self, img: &WzImgHeader) -> anyhow::Result<ImgReader<SubReader<&mut T>>>
+    where
+        T: BufRead,
+    {
         let off = img.offset.0 as u64;
         let len = img.blob_size.0 as u64;
 
@@ -106,7 +114,23 @@ impl<T: Read + Seek> WzReader<T> {
 
         Ok(ImgReader::new(
             sub,
-            ImgContext::with_flag(self.ctx.img.clone(), CanvasDataFlag::AutoDetect)
+            ImgContext::with_flag(self.ctx.img.clone(), CanvasDataFlag::AutoDetect),
+        ))
+    }
+}
+
+impl WzReader<Cursor<&[u8]>> {
+    pub fn borrowed_img_reader(
+        &self,
+        img: &WzImgHeader,
+    ) -> anyhow::Result<ImgReader<SubReader<Cursor<&[u8]>>>> {
+        let off = img.offset.0 as u64;
+        let len = img.blob_size.0 as u64;
+        let sub = SubReader::create(self.reader.clone(), off, len)?;
+
+        Ok(ImgReader::new(
+            sub,
+            ImgContext::with_flag(self.ctx.img.clone(), CanvasDataFlag::AutoDetect),
         ))
     }
 }
@@ -125,13 +149,13 @@ mod tests {
         let ctx = WzContext::kms(71).shared();
         let mut wz = WzReader::open(file, ctx.clone()).unwrap();
 
-
         let root = wz.read_root_dir().unwrap();
         let etc = root.get("Etc").unwrap();
         let etc = wz.read_dir_node(etc.as_dir().unwrap()).unwrap();
 
         let img = etc.get("0414.img").unwrap();
-        let mut img: ImgReader<SubReader<&mut BufReader<File>>> = wz.img_reader(img.as_img().unwrap()).unwrap();
+        let mut img: ImgReader<SubReader<&mut BufReader<File>>> =
+            wz.img_reader(img.as_img().unwrap()).unwrap();
         let root = Object::from_reader(&mut img).unwrap();
         let root = root.as_property().unwrap();
 
@@ -173,13 +197,14 @@ mod tests {
 
     #[test]
     fn gms() {
-
         let ctx = WzContext::global(95).shared();
-        let mut wz = WzReader::open("/home/jonas/shared_vm/maplestory/Item.wz", ctx.clone()).unwrap();
+        let mut wz =
+            WzReader::open("/home/jonas/shared_vm/maplestory/Npc.wz", ctx.clone()).unwrap();
         dbg!(&wz.hdr);
 
         let root = wz.read_root_dir().unwrap();
         dbg!(&root);
+        assert!(false);
     }
 
     #[test]

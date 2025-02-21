@@ -185,21 +185,21 @@ impl CanvasOwned {
         match pix {
             WzPixelFormat::BGRA4 => {
                 data.reserve((w * h * 2) as usize);
-                for (_, px) in img.pixels().enumerate() {
+                for px in img.pixels() {
                     let px = BGRA4::from_rgba8(px.0.into());
                     data.extend_from_slice(&px.to_bytes());
                 }
             }
             WzPixelFormat::BGR565 => {
                 data.reserve((w * h * 2) as usize);
-                for (_, px) in img.pixels().enumerate() {
+                for px in img.pixels(){
                     let px = BGRA4::from_rgba8(px.0.into());
                     data.extend_from_slice(&px.to_bytes());
                 }
             }
             WzPixelFormat::BGRA8 => {
                 data.reserve((w * h * 4) as usize);
-                for (_, px) in img.pixels().enumerate() {
+                for px in img.pixels(){
                     let px = px.0;
                     let px = BGRA8 {
                         b: px[2],
